@@ -104,8 +104,8 @@ Stable strings, asserted exactly by the vectors: `bad_length`, `bad_version`,
 `unknown_kind`, `bad_genesis`, `duplicate_genesis`, `bad_height`,
 `bad_prev_hash`, `bad_signature`, `bad_payload`, `size_mismatch`,
 `root_mismatch`, `head_mismatch`, `epoch_mismatch`, `below_quorum`,
-`below_witnesses`, `duplicate_signer`, `bad_trust_config`,
-`bad_checkpoint_length`.
+`below_witness_threshold`, `duplicate_signer`, `bad_trust_config`,
+`bad_checkpoint`.
 
 ## 8. What Phase 0 does and does not check
 

@@ -8,7 +8,7 @@
 <p>The code under test never touches anything real, and nothing it does can leave the box. It is the same discipline we want from the agents Cairn will eventually govern.</p>
 <p>One honest limit: the Go race detector needs a C compiler, which the offline container doesn't have. CI runs <code style="background:#f0f0f0;padding:0 4px;">-race</code> on GitHub's runners. Locally I ran <code style="background:#f0f0f0;padding:0 4px;">go vet</code>, <code style="background:#f0f0f0;padding:0 4px;">gofmt</code> and the full test suite without it.</p>
 <h2 style="font-family:Arial,sans-serif;margin-top:1.8em;">The setup</h2>
-<p>We take the known-good 8-entry test chain and its signed checkpoint (4 validators, 3 needed, plus 2 witnesses), then damage the encoded bytes and run the real verifier (<code style="background:#f0f0f0;padding:0 4px;">VerifyLog</code>). A mutation passes the test only if the verifier <strong>rejects</strong> it. Three kinds of damage:</p>
+<p>We take the known-good 8-entry test chain and its signed checkpoint (a 4-validator trust config; the checkpoint is signed by 3 validators and 2 witnesses, exactly the minimum), then damage the encoded bytes and run the real verifier (<code style="background:#f0f0f0;padding:0 4px;">VerifyLog</code>). A mutation passes the test only if the verifier <strong>rejects</strong> it. Three kinds of damage:</p>
 <ol><li><strong>Every single-bit flip</strong>, exhaustively. Not a sample: every bit of every byte.</li><li><strong>1,000 seeded random mutations:</strong> multi-bit flips, random overwrites, truncation,</li></ol>
 <p>junk appended, zeroed runs. The seed is fixed so anyone can reproduce the run.</p>
 <ol><li><strong>94 structural attacks</strong> on the list of entries: delete one, duplicate one, swap</li></ol>
@@ -34,5 +34,6 @@
 go test ./internal/vectorgen -run Tamper -v</code></pre>
 <p>The suite is <code style="background:#f0f0f0;padding:0 4px;">internal/vectorgen/tamper_test.go</code>. It takes about 9 seconds and is part of CI.</p>
 <h2 style="font-family:Arial,sans-serif;margin-top:1.8em;">Next</h2>
+<p>Update: the next post covers an outside audit of this series, which found two real problems.</p>
 <p>Phase 1 is the governance state machine: who may propose what, which votes count, and how the tier delays are enforced. The next sandbox experiment writes that as a pure function of the log and then attacks it with randomly generated <em>valid</em> histories, where every entry is correctly signed and the question is whether the rules hold.</p>
 </div>

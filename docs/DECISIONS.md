@@ -68,3 +68,14 @@ forgery (the quorum is still proven), but two different byte strings are the
 same valid checkpoint. Rule until decided: identify a checkpoint by its body,
 never by a hash of its encoding. Phase 1 should decide whether to require
 sorted, admitted-only signatures so the encoding becomes unique.
+
+**ADR-13. "Log before act" vs. ACTION's result_hash (OPEN).**
+Why: found by an external audit of the blog series. Constitution I7 says the
+gatekeeper writes the ACTION entry *before* it executes, but the ACTION payload
+carries a `result_hash`, which cannot exist until the action has run. As
+specified, a single entry cannot do both. Candidate fixes: (a) write the entry
+before with a zero `result_hash`, then a second ACTION entry with the same
+`args_hash` and the real `result_hash`; (b) a separate RESULT kind. Either keeps
+I7 (intent is committed first) and adds a reconcile rule: an intent with no
+result after a timeout is itself a signal. Until decided, docs must not claim
+more than "every action is recorded".

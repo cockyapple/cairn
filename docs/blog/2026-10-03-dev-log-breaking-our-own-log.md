@@ -27,8 +27,8 @@ the full test suite without it.
 
 ## The setup
 
-We take the known-good 8-entry test chain and its signed checkpoint (4 validators,
-3 needed, plus 2 witnesses), then damage the encoded bytes and run the real verifier
+We take the known-good 8-entry test chain and its signed checkpoint (a 4-validator trust
+config; the checkpoint is signed by 3 validators and 2 witnesses, exactly the minimum), then damage the encoded bytes and run the real verifier
 (`VerifyLog`). A mutation passes the test only if the verifier **rejects** it. Three
 kinds of damage:
 
@@ -116,6 +116,8 @@ The suite is `internal/vectorgen/tamper_test.go`. It takes about 9 seconds and i
 of CI.
 
 ## Next
+
+Update: the next post covers an outside audit of this series, which found two real problems.
 
 Phase 1 is the governance state machine: who may propose what, which votes count, and
 how the tier delays are enforced. The next sandbox experiment writes that as a pure
