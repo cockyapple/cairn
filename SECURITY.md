@@ -9,12 +9,8 @@ review and is not yet independently audited. Do not rely on it to protect anythi
 
 ## Reporting
 
-Please **do not open a public issue** for a vulnerability.
-
-While the repository is private, report directly to the maintainer, [@cockyapple](https://github.com/cockyapple),
-by any private channel you already have with them. Private vulnerability reporting will be
-switched on when the repository goes public; from then on use the Security tab, "Report a
-vulnerability".
+Please **do not open a public issue** for a vulnerability. Use GitHub's private
+vulnerability reporting on this repository (Security tab, "Report a vulnerability").
 
 Include the affected file or document, what an attacker can do, and steps to reproduce.
 
