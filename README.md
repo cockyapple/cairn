@@ -1,8 +1,10 @@
-<h1 align="center">Cairn</h1>
+<h1 align="center"><img alt="Cairn" src="docs/assets/cairn-logo.jpg" width="480"></h1>
 
 <p align="center"><strong>A tamper-evident, community-reviewed ledger for AI agents.</strong><br>
 Every change to an agent, and every consequential thing it does, goes into a public log anyone can verify.<br>
 Changes take effect only after delayed, human-auditable review. No blockchain framework. Standard library only.</p>
+
+<p align="center"><a href="https://cairnframework.blogspot.com">Blog</a> · <a href="docs/assets/cairn-logo-sting.mp4">5-second logo animation</a></p>
 
 <p align="center">
 <a href="https://github.com/cockyapple/cairn/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cockyapple/cairn/actions/workflows/ci.yml/badge.svg"></a>
