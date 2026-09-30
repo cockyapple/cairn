@@ -88,6 +88,13 @@ signature by an **admitted** key verifies (signatures by keys outside the
 config are ignored and never counted); validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.
 
+Consequence: a checkpoint's bytes are **not canonical**. Replacing the public key
+of one signature with a stranger's key turns that signature into an ignored one, and
+the checkpoint still verifies if quorum holds without it. Verifiers must therefore
+identify a checkpoint by its body (epoch, size, root, head), never by a hash of its
+wire bytes. Whether Phase 1 should require sorted, admitted-only signatures is open
+(see DECISIONS.md, ADR-12).
+
 Quorum `n - (n-1)/3` means any two quorums share an honest validator when at
 most `(n-1)/3` are faulty. For n = 1, 4, 7 the quorum is 1, 3, 5.
 

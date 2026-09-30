@@ -59,3 +59,12 @@ Why: one compromised agent must yield only its own grant. Agents talk through
 validated typed records (never spliced prompts), delegate only subsets of their
 own grant, and are also bounded by fleet budgets, spawn limits and fleet-wide
 anomaly freezes. Cost: more moving parts in the gatekeeper and a bus to operate.
+
+**ADR-12. Checkpoint bytes are not canonical in Phase 0 (OPEN).**
+Why: the tamper suite showed that with surplus signatures, 1,024 of 5,288
+single-bit flips (every bit of every validator's public-key field) still verify,
+because a key outside the trust config is ignored by design. That is not a
+forgery (the quorum is still proven), but two different byte strings are the
+same valid checkpoint. Rule until decided: identify a checkpoint by its body,
+never by a hash of its encoding. Phase 1 should decide whether to require
+sorted, admitted-only signatures so the encoding becomes unique.
