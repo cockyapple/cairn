@@ -247,6 +247,8 @@ func (b *builder) invalidChains(chain []ledger.Entry) []ChainCase {
 	c[0] = b.entry(0, ledger.Hash{}, ledger.KindProposal, []byte("x"), "founder")
 	add("first_entry_not_genesis", ledger.CodeBadGenesis, c)
 
+	add("empty_chain", ledger.CodeBadGenesis, []ledger.Entry{})
+
 	c = cp(chain)
 	c[4] = b.entry(4, chain[3].Hash(), ledger.KindGenesis, []byte("x"), "v1")
 	add("second_genesis", ledger.CodeDuplicateGenesis, c)
@@ -292,6 +294,9 @@ func (b *builder) checkpointCases(chain []ledger.Entry, trust ledger.TrustConfig
 		b.signed(ledger.NewCheckpoint(0, chain[:4]), "v1", "v2", "v3", "v4", "w1", "w2"))
 	add("ignores_signature_from_unadmitted_key", "", chain,
 		b.signed(full, "v1", "v2", "v3", "w1", "w2", "outsider"))
+
+	add("ignores_repeated_unadmitted_signer", "", chain,
+		b.signed(full, "v1", "v2", "v3", "w1", "w2", "outsider", "outsider"))
 
 	add("below_validator_quorum", ledger.CodeBelowQuorum, chain, b.signed(full, "v1", "v2", "w1", "w2"))
 	add("below_witness_threshold", ledger.CodeBelowWitnesses, chain, b.signed(full, "v1", "v2", "v3", "w1"))

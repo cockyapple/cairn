@@ -121,14 +121,14 @@ func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig)
 	validators, witnesses := 0, 0
 	in := checkpointSigInput(&sc.Checkpoint)
 	for _, cs := range sc.Sigs {
-		if seen[cs.Public] {
-			return fail(CodeDuplicateSigner, "a key signed more than once")
-		}
-		seen[cs.Public] = true
 		role, ok := trust.roleOf(cs.Public)
 		if !ok {
 			continue
 		}
+		if seen[cs.Public] {
+			return fail(CodeDuplicateSigner, "an admitted key signed more than once")
+		}
+		seen[cs.Public] = true
 		if !ed25519.Verify(ed25519.PublicKey(cs.Public[:]), in, cs.Signature[:]) {
 			return fail(CodeBadSignature, "invalid signature by an admitted key")
 		}

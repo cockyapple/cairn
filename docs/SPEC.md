@@ -63,7 +63,7 @@ Unknown kinds, tiers, roles, verdicts and scopes are rejected, not ignored.
 
 ## 4. Chain rules
 
-A chain is valid iff: it is non-empty; entry 0 is GENESIS with height 0 and zero
+A chain is valid iff: it is non-empty (an empty chain is `bad_genesis`); entry 0 is GENESIS with height 0 and zero
 `prev_hash`; there is no other GENESIS; heights are consecutive; every
 `prev_hash` equals the previous entry hash; every signature verifies under the
 entry's own `author`.
@@ -83,7 +83,7 @@ then n x (`[32] public_key, [64] signature`).
 
 A checkpoint is valid for a chain and a TrustConfig iff: size equals the entry
 count and is non-zero; root equals the Merkle root; head equals the last entry
-hash; epoch equals the TrustConfig epoch; no signer appears twice; every
+hash; epoch equals the TrustConfig epoch; no admitted signer appears twice (a repeated key outside the config is ignored like any other); every
 signature by an **admitted** key verifies (signatures by keys outside the
 config are ignored and never counted); validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.

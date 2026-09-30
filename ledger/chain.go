@@ -7,6 +7,9 @@ import "fmt"
 // allowed to write a given kind is the review state machine's job (Phase 2).
 // Checks run in a fixed order so each failure has exactly one code.
 func VerifyChain(entries []Entry) error {
+	if len(entries) == 0 {
+		return fail(CodeBadGenesis, "a chain must begin with GENESIS; this one is empty")
+	}
 	for i := range entries {
 		e := &entries[i]
 		if !e.Kind.Valid() {

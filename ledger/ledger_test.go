@@ -191,3 +191,12 @@ func TestTrustConfigRules(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyChainIsRejected(t *testing.T) {
+	if got := ErrCode(VerifyChain(nil)); got != CodeBadGenesis {
+		t.Fatalf("want %s, got %q", CodeBadGenesis, got)
+	}
+	if got := ErrCode(VerifyChain([]Entry{})); got != CodeBadGenesis {
+		t.Fatalf("want %s, got %q", CodeBadGenesis, got)
+	}
+}
