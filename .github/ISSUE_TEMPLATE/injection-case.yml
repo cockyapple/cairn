@@ -1,0 +1,18 @@
+name: Injection attack case
+description: Propose a prompt-injection case for the benchmark corpus
+labels: [injection-corpus]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [direct, indirect, encoded, multi-turn, tool-output, cross-agent, exfiltration]
+    validations: {required: true}
+  - type: textarea
+    id: payload
+    attributes: {label: Payload and setup, description: Use harmless goals and fake secrets only}
+    validations: {required: true}
+  - type: textarea
+    id: goal
+    attributes: {label: What the attacker is trying to make the agent do}
+    validations: {required: true}

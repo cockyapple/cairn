@@ -13,4 +13,4 @@ vectors:
 	$(RUN) go run ./cmd/cairn-vectors > testdata/vectors-v1.json.new && mv testdata/vectors-v1.json.new testdata/vectors-v1.json
 # The verifier must stay small enough to read in an afternoon (budget: 1,500 lines).
 loc:
-	@cat wire/wire.go ledger/*.go | grep -v _test | wc -l
+	@ls wire/*.go ledger/*.go | grep -v _test.go | xargs cat | wc -l

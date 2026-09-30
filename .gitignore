@@ -1,0 +1,12 @@
+*.new
+*.test
+*.out
+*.exe
+*.key
+*.pem
+.env
+.env.*
+/bin/
+/dist/
+coverage.*
+.DS_Store

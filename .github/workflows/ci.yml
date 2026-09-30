@@ -1,0 +1,29 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: gofmt
+        run: test -z "$(gofmt -l .)"
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test -count=1 -race ./...
+      - name: vectors are current
+        run: |
+          go run ./cmd/cairn-vectors > /tmp/v.json
+          diff -u testdata/vectors-v1.json /tmp/v.json
+      - name: no third-party dependencies
+        run: test "$(grep -c . go.mod)" -le 4 && ! test -e go.sum
+      - name: verifier size budget
+        run: test "$(ls wire/*.go ledger/*.go | grep -v _test.go | xargs cat | wc -l)" -le 1500

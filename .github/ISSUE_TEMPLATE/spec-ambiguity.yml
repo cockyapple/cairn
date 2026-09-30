@@ -1,0 +1,12 @@
+name: Spec ambiguity or attack on the design
+description: A part of the spec, threat model or constitution is unclear or breakable
+labels: [spec]
+body:
+  - type: textarea
+    id: where
+    attributes: {label: Where, description: File and section}
+    validations: {required: true}
+  - type: textarea
+    id: issue
+    attributes: {label: The ambiguity or attack}
+    validations: {required: true}
