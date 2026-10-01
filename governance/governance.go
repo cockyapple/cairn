@@ -50,12 +50,47 @@ type EpochSpan struct {
 	Trust ledger.TrustConfig
 }
 
+// Status is where a proposal stands at the end of a replay.
+type Status string
+
+const (
+	StatusOpen      Status = "open"      // may still gather votes and be activated
+	StatusRejected  Status = "rejected"  // a reviewer rejected or escalated it; it can never activate
+	StatusActivated Status = "activated" // an ACTIVATE entry accepted it
+	StatusVoid      Status = "void"      // a VALIDATORS entry ended its epoch first
+)
+
+// VoteInfo is one VOTE entry as the replay saw it.
+type VoteInfo struct {
+	Hash        ledger.Hash
+	Height      uint64
+	Author      [32]byte
+	Role        ledger.Role
+	Verdict     ledger.Verdict
+	CommentHash ledger.Hash
+}
+
+// ProposalInfo is one PROPOSAL entry and everything that happened to it.
+type ProposalInfo struct {
+	Hash           ledger.Hash
+	Height         uint64
+	Time           uint64
+	Author         [32]byte
+	Epoch          uint64
+	Proposal       ledger.Proposal
+	Votes          []VoteInfo
+	Status         Status
+	ActivatedAt    uint64 // height of the ACTIVATE entry, when Status is activated
+	EffectiveAfter uint64 // when Status is activated
+}
+
 // State is the result of a successful replay.
 type State struct {
 	Entries     int
 	Epochs      []EpochSpan
 	Frozen      bool
 	Activations []Activation
+	Proposals   []ProposalInfo // in log order
 	OpenIntents []OpenIntent
 	Completed   int
 }
@@ -93,14 +128,17 @@ const (
 
 type proposalRec struct {
 	hash      ledger.Hash
+	height    uint64
 	author    [32]byte
 	time      uint64
 	epoch     uint64
 	p         ledger.Proposal
 	activated bool
+	actHeight uint64
 	effective uint64
 	blocked   bool
 	voters    map[[32]byte]bool
+	votes     []VoteInfo
 }
 
 type voteRec struct {
@@ -118,6 +156,7 @@ type replayer struct {
 	st        State
 	blobs     Blobs
 	proposals map[ledger.Hash]*proposalRec
+	order     []*proposalRec
 	votes     map[ledger.Hash]voteRec
 	agents    map[[32]byte]*agentRec
 	pending   []*proposalRec // activated validators-set changes not yet applied
@@ -155,6 +194,22 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		r.st.OpenIntents = append(r.st.OpenIntents, ag.open...)
 	}
 	sort.Slice(r.st.OpenIntents, func(i, j int) bool { return r.st.OpenIntents[i].Height < r.st.OpenIntents[j].Height })
+	final := r.epoch()
+	for _, p := range r.order {
+		info := ProposalInfo{
+			Hash: p.hash, Height: p.height, Time: p.time, Author: p.author, Epoch: p.epoch,
+			Proposal: p.p, Votes: p.votes, Status: StatusOpen,
+		}
+		switch {
+		case p.activated:
+			info.Status, info.ActivatedAt, info.EffectiveAfter = StatusActivated, p.actHeight, p.effective
+		case p.blocked:
+			info.Status = StatusRejected
+		case p.epoch != final:
+			info.Status = StatusVoid
+		}
+		r.st.Proposals = append(r.st.Proposals, info)
+	}
 	return &r.st, nil
 }
 
@@ -242,7 +297,9 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 		}
 	}
 	h := e.Hash()
-	r.proposals[h] = &proposalRec{hash: h, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, voters: map[[32]byte]bool{}}
+	rec := &proposalRec{hash: h, height: e.Height, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, voters: map[[32]byte]bool{}}
+	r.proposals[h] = rec
+	r.order = append(r.order, rec)
 	return nil
 }
 
@@ -270,6 +327,10 @@ func (r *replayer) vote(e *ledger.Entry, b []byte) error {
 		prop.blocked = true
 	}
 	r.votes[e.Hash()] = voteRec{proposal: v.ProposalHash, author: e.Author, verdict: v.Verdict}
+	role, _ := r.trust().RoleOf(e.Author)
+	prop.votes = append(prop.votes, VoteInfo{
+		Hash: e.Hash(), Height: e.Height, Author: e.Author, Role: role, Verdict: v.Verdict, CommentHash: v.CommentHash,
+	})
 	return nil
 }
 
@@ -318,7 +379,7 @@ func (r *replayer) activate(e *ledger.Entry, b []byte) error {
 	if a.EffectiveAfter < prop.time || a.EffectiveAfter-prop.time < delays[prop.p.Tier] {
 		return fail(e.Height, CodeDelayTooShort, "effective_after is sooner than the tier's minimum delay after the proposal")
 	}
-	prop.activated, prop.effective = true, a.EffectiveAfter
+	prop.activated, prop.effective, prop.actHeight = true, a.EffectiveAfter, e.Height
 	r.st.Activations = append(r.st.Activations, Activation{
 		ProposalHash: prop.hash, Proposal: prop.p, ProposedBy: prop.author, Epoch: prop.epoch,
 		ActivatedAt: e.Height, EffectiveAfter: a.EffectiveAfter,
@@ -419,4 +480,21 @@ func (r *replayer) validators(e *ledger.Entry, b []byte) error {
 	r.pending = nil
 	r.st.Epochs = append(r.st.Epochs, EpochSpan{From: e.Height, Trust: tc})
 	return nil
+}
+
+// Required returns the approvals a tier needs and how many of them must come
+// from security reviewers (SPEC section 10.2).
+func Required(t ledger.Tier) (total, security int) {
+	if t > ledger.T4 {
+		return 1 << 30, 1 << 30
+	}
+	return approvals[t].total, approvals[t].security
+}
+
+// MinDelay returns a tier's minimum delay in seconds (SPEC section 10.2).
+func MinDelay(t ledger.Tier) uint64 {
+	if t > ledger.T4 {
+		return ^uint64(0)
+	}
+	return delays[t]
 }
