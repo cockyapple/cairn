@@ -304,3 +304,38 @@ func TestConcurrentActionsKeepTheChainLawful(t *testing.T) {
 		t.Fatalf("%+v", st)
 	}
 }
+
+// A completion the log refuses must not strand the agent: its intent is still
+// open, and the replay wants that closed first. The completion is kept and
+// written before anything else, and nothing runs in the meantime.
+func TestRefusedCompletionIsRetriedBeforeNextAction(t *testing.T) {
+	e, g := setup(t)
+	base := e.now
+	e.l.Opt = governance.Options{Now: base + 20}
+	runs := 0
+	g.Handle("refund", func(context.Context, []byte) ([]byte, error) {
+		runs++
+		if runs == 1 {
+			e.now += 1000 // the completion will be stamped in the future and refused
+		}
+		return []byte("done"), nil
+	})
+	ctx := context.Background()
+	if _, err := g.Do(ctx, "actor", "refund", []byte("a")); err == nil || !strings.Contains(err.Error(), "could not be logged") {
+		t.Fatalf("want a completion failure, got %v", err)
+	}
+	if _, err := g.Do(ctx, "actor", "refund", []byte("b")); !errors.Is(err, gatekeeper.ErrNotLogged) || runs != 1 {
+		t.Fatalf("the agent acted while its completion was unwritten: err=%v runs=%d", err, runs)
+	}
+	e.now = base + 2
+	if _, err := g.Do(ctx, "actor", "refund", []byte("c")); err != nil {
+		t.Fatalf("the agent stayed stuck after the log recovered: %v", err)
+	}
+	if runs != 2 {
+		t.Fatalf("runs=%d", runs)
+	}
+	e.replays(t)
+	if len(e.l.Entries) != 5 {
+		t.Fatalf("want genesis + two intents + two completions, got %d entries", len(e.l.Entries))
+	}
+}

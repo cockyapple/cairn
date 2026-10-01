@@ -182,3 +182,18 @@ func TestUsageErrors(t *testing.T) {
 		t.Errorf("missing file: exit %d", code)
 	}
 }
+
+func TestLoadBlobsRefusesMoreThanTheTotalCap(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"a", "b"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("12345678"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := maxBlobTotal
+	maxBlobTotal = 10
+	defer func() { maxBlobTotal = old }()
+	if _, err := loadBlobs(dir); err == nil || !strings.Contains(err.Error(), "add up to more than") {
+		t.Fatalf("want a total-size refusal, got %v", err)
+	}
+}

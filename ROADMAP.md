@@ -41,7 +41,8 @@ provably never loads.
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
 policy layer, message bus, review page and the end-to-end test are built. **Not built:**
 the per-agent OS sandbox, live-service tests of the adapters, and the log server that
-Phase 1 still owes. I4 and I11 are not enforced (SPEC 10.5).
+Phase 1 still owes. There is also no eval runner service: `eval` is a library, and the scores a
+proposal carries are the proposer's claim, which the log does not recompute. I4 and I11 are not enforced (SPEC 10.5).
 
 ### Phase 3 (weeks 11 to 14): Governed agent and fleets
 A first real agent that loads configuration only from the ledger, logs every action,

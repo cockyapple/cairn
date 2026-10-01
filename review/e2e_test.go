@@ -207,3 +207,64 @@ func TestHugeArtifactStillShowsContent(t *testing.T) {
 		t.Error("an oversized artifact must still show content and say when the view is partial")
 	}
 }
+
+func TestEvalBaselineOnANewTargetCannotBeForged(t *testing.T) {
+	f := newFixture(t)
+	art := []byte("a\nb\n")
+	forged, _ := eval.Run("s", suite, []byte("terrible baseline\n"), art, lineScorer)
+	honest, _ := eval.Run("s", suite, nil, art, lineScorer)
+	p1, err := f.l.Propose(f.prop, ledger.T1, "prompt/new1", art, []byte("x"), forged)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := review.Gather(f.l.State(), f.l.Blobs, p1)
+	if err != nil || m.EvalProblem == "" {
+		t.Fatalf("a baseline nobody can check must be flagged: %v %q", err, m.EvalProblem)
+	}
+	p2, err := f.l.Propose(f.prop, ledger.T1, "prompt/new2", art, []byte("x"), honest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m, err = review.Gather(f.l.State(), f.l.Blobs, p2); err != nil || m.EvalProblem != "" {
+		t.Fatalf("an empty baseline for a new target is honest: %v %q", err, m.EvalProblem)
+	}
+}
+
+func TestLLMReviewerSeesAnOversizedChangeInFull(t *testing.T) {
+	f := newFixture(t)
+	big := bytes.Repeat([]byte("l\n"), 2500)
+	big2 := append(append([]byte(nil), big...), []byte("one more\n")...)
+	if _, err := f.l.Propose(f.prop, ledger.T0, "doc/big2", big, []byte("a"), nil); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := f.l.Propose(f.prop, ledger.T0, "doc/big2", big2, []byte("b"), nil)
+	if _, err := f.l.Activate(f.val, f.l.State().Proposals[0].Hash); err != nil {
+		t.Fatal(err)
+	}
+	m, err := review.Gather(f.l.State(), f.l.Blobs, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := &fakeModel{text: `{"verdict":"approve","reason":"ok"}`}
+	if _, err := (&review.LLMReviewer{Label: "m", Model: model}).Review(context.Background(), m); err != nil {
+		t.Fatalf("a change too big to diff but small enough to read must still be reviewable: %v", err)
+	}
+	if !strings.Contains(model.got.User, "Too large to diff") || !strings.Contains(model.got.User, "one more") {
+		t.Error("the model was not given the full content")
+	}
+}
+
+func TestBundleRefusesMoreThanTheTotalBlobCap(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.l.Propose(f.prop, ledger.T1, "tool/search", []byte("some artifact text"), []byte("rationale"), nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "b")
+	if err := review.SaveBundle(dir, f.l.Entries, f.l.Blobs); err != nil {
+		t.Fatal(err)
+	}
+	defer review.SetMaxBlobTotal(16)()
+	if _, _, err := review.LoadBundle(dir); err == nil || !strings.Contains(err.Error(), "add up to more than") {
+		t.Fatalf("want a total-size refusal, got %v", err)
+	}
+}

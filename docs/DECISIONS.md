@@ -163,3 +163,20 @@ Decision: `governance.Options` gains `MinTier` (a tier floor per target;
 verifier's clock allows are rejected; `future_entry`). Both are inputs to the
 verifier, not entries, so every verifier must be given the same policy; the CLI
 exposes the clock as `-use-clock`. Cost: agreement on policy is out of band.
+
+**ADR-19. Fixes from the Phase 2 audit (DECIDED, Phase 2).**
+Why: a second Gemini audit of the whole phase found four real problems. (1) An
+eval result for a target with nothing in force could name any baseline, and the
+page and the model reviewer would present its scores as checked. Now the baseline
+must be the hash of an empty artifact, otherwise the result is flagged as not
+applying. (2) The blob loaders capped file count and file size but not the total,
+so a hostile bundle could ask for terabytes; both now stop at 256 MiB in total
+and one count limit. (3) A change too large to diff was refused outright by the
+model reviewer, so it could never vote on a big file; it now gets the full
+proposed content, as the review page does, and still declines when that is too
+big to read in full. (4) If the log refused a completion after the handler had
+run, the open intent was never closed and the replay then refused every later
+action of that agent; the completion is now kept and retried before the agent
+does anything else, and nothing runs until it is written. Explicit non-claim: the
+log does not recompute eval scores, so they remain the proposer's claim, and
+there is still no eval runner service, only the library.

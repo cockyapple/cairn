@@ -60,11 +60,15 @@ func (r *LLMReviewer) prompt(m *Material) (string, error) {
 	fmt.Fprintf(&body, "Target: %q\nTier: T%d\n", m.Info.Proposal.Target, m.Info.Proposal.Tier)
 	if m.HasPrevious {
 		d, err := Diff(m.Previous, m.Artifact)
-		if err != nil {
+		if err == nil {
+			body.WriteString("\nChange against the artifact currently in force (- removed, + added):\n")
+			body.WriteString(Unified(d))
+		} else if errors.Is(err, ErrDiffTooLarge) {
+			body.WriteString("\nToo large to diff against the artifact in force, so no changes are marked. Full proposed content:\n")
+			body.Write(m.Artifact)
+		} else {
 			return "", err
 		}
-		body.WriteString("\nChange against the artifact currently in force (- removed, + added):\n")
-		body.WriteString(Unified(d))
 	} else {
 		body.WriteString("\nThere is no earlier artifact for this target. Full proposed content:\n")
 		body.Write(m.Artifact)

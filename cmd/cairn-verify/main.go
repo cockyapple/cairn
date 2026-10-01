@@ -24,8 +24,11 @@ import (
 
 const (
 	maxBlobBytes = 1 << 20
-	maxBlobs     = 1 << 20
+	maxBlobs     = 1 << 16
 )
+
+// maxBlobTotal bounds what a bundle may make the verifier hold in memory.
+var maxBlobTotal int64 = 256 << 20
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
@@ -132,6 +135,7 @@ func loadBlobs(dir string) (governance.MapBlobs, error) {
 		return nil, err
 	}
 	m := governance.MapBlobs{}
+	var total int64
 	for _, f := range files {
 		if !f.Type().IsRegular() {
 			continue
@@ -146,6 +150,9 @@ func loadBlobs(dir string) (governance.MapBlobs, error) {
 		}
 		if fi.Size() > maxBlobBytes {
 			return nil, fmt.Errorf("%s is larger than %d bytes", f.Name(), maxBlobBytes)
+		}
+		if total += fi.Size(); total > maxBlobTotal {
+			return nil, fmt.Errorf("the blobs in %s add up to more than %d bytes", dir, maxBlobTotal)
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {

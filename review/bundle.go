@@ -10,6 +10,9 @@ import (
 	"github.com/cockyapple/cairn/ledger"
 )
 
+// maxBlobTotal bounds what a bundle may make a reader hold in memory.
+var maxBlobTotal int64 = 256 << 20
+
 const (
 	maxBlobBytes = 1 << 20
 	maxBlobs     = 1 << 16
@@ -59,6 +62,7 @@ func LoadBundle(dir string) ([]ledger.Entry, governance.MapBlobs, error) {
 		return nil, nil, err
 	}
 	blobs := governance.MapBlobs{}
+	var total int64
 	for _, f := range files {
 		if !f.Type().IsRegular() {
 			continue
@@ -73,6 +77,9 @@ func LoadBundle(dir string) ([]ledger.Entry, governance.MapBlobs, error) {
 		}
 		if fi.Size() > maxBlobBytes {
 			return nil, nil, fmt.Errorf("%s is larger than %d bytes", f.Name(), maxBlobBytes)
+		}
+		if total += fi.Size(); total > maxBlobTotal {
+			return nil, nil, fmt.Errorf("the blobs add up to more than %d bytes", maxBlobTotal)
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {

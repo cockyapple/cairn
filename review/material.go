@@ -85,6 +85,8 @@ func Gather(st *governance.State, blobs governance.Blobs, proposal ledger.Hash) 
 			m.EvalProblem = "the eval result was computed for a different artifact than this proposal carries"
 		case m.HasPrevious && m.Eval.BaselineHash != ledger.BlobHash(m.Previous):
 			m.EvalProblem = "the eval result compares against a different baseline than the artifact now in force"
+		case !m.HasPrevious && m.Eval.BaselineHash != ledger.BlobHash(nil):
+			m.EvalProblem = "the eval result names a baseline, but no artifact was in force for this target, so that baseline cannot be checked"
 		}
 	}
 	return m, nil

@@ -80,6 +80,15 @@ type Agent struct {
 
 	mu      sync.Mutex // serialises this agent's actions: the log chains them
 	allowed map[string]bool
+	// pending is a completion the log refused after the handler had run. The
+	// intent is still open, and the replay wants it closed first, so the agent
+	// takes no new action until this is written.
+	pending *pendingCompletion
+}
+
+type pendingCompletion struct {
+	actionType string
+	args, blob []byte
 }
 
 // View returns a freshly verified loader gate and the current trusted time.
@@ -164,13 +173,40 @@ func (g *Gatekeeper) complete(a *Agent, actionType string, args, result []byte) 
 
 // refuse logs the refusal and returns it.
 func (g *Gatekeeper) refuse(a *Agent, actionType string, args []byte, r *Refusal) error {
+	if err := g.flush(a); err != nil {
+		return err
+	}
 	if err := g.intent(a, actionType, args); err != nil {
 		return err
 	}
-	if err := g.complete(a, actionType, args, refusalBlob(r)); err != nil {
+	if err := g.finish(a, actionType, args, refusalBlob(r)); err != nil {
 		return err
 	}
 	return r
+}
+
+// finish writes a completion and, if the log refuses it, remembers it so that
+// flush can retry before the agent does anything else.
+func (g *Gatekeeper) finish(a *Agent, actionType string, args, blob []byte) error {
+	err := g.complete(a, actionType, args, blob)
+	if err != nil {
+		a.pending = &pendingCompletion{actionType, args, blob}
+	}
+	return err
+}
+
+// flush retries a completion the log refused earlier. Until it is written the
+// agent's oldest open intent is still open, so no new action may start.
+func (g *Gatekeeper) flush(a *Agent) error {
+	p := a.pending
+	if p == nil {
+		return nil
+	}
+	if err := g.complete(a, p.actionType, p.args, p.blob); err != nil {
+		return fmt.Errorf("%w: an earlier completion is still unwritten: %v", ErrNotLogged, err)
+	}
+	a.pending = nil
+	return nil
 }
 
 func (g *Gatekeeper) configOK(a *Agent) *Refusal {
@@ -204,6 +240,9 @@ func (g *Gatekeeper) Do(ctx context.Context, agent, actionType string, args []by
 }
 
 func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args []byte, run Handler) ([]byte, error) {
+	if err := g.flush(a); err != nil {
+		return nil, err
+	}
 	if len(args) > a.MaxArgs {
 		return nil, g.refuse(a, actionType, nil, &Refusal{CodeArgsTooLarge, fmt.Sprintf("%d bytes exceeds the limit of %d", len(args), a.MaxArgs)})
 	}
@@ -240,7 +279,7 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	default:
 		blob = okResult(res)
 	}
-	if err := g.complete(a, actionType, args, blob); err != nil {
+	if err := g.finish(a, actionType, args, blob); err != nil {
 		return nil, fmt.Errorf("gatekeeper: action ran but its completion could not be logged: %w", err)
 	}
 	if herr != nil {
