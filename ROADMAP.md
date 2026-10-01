@@ -57,9 +57,11 @@ forced split view.
 - **Checkpoint format decision, before the log server is written** (ADR-20). Keep the native
   binary checkpoint as the signed object and add a C2SP signed-note rendering of the same
   tree head for outside witnesses, rather than replacing the format. Decide, then build.
-- **`REVOKE` entry.** An emergency, no-delay revocation of one key, signed by a security
-  reviewer or a validator quorum, that stops that key being accepted from the next entry on.
-  Today a stolen key stays valid until a tiered change clears its delay.
+- **`REVOKE` entry (BUILT, ADR-20).** An emergency, no-delay revocation signed by one validator
+  or security reviewer. It covers agent and proposer keys only and is permanent; the replay
+  rejects that key from the next entry on, and a freeze does not block it. Revoking a
+  reviewer, validator or witness key still needs a T4 VALIDATORS change, by design, so one
+  signer cannot stall governance.
 - **Sequencer admission limits.** Per-author rate and size caps at the log server, so a
   compromised agent cannot flood the log with intents. Replay should not need every blob in
   memory at once.

@@ -57,6 +57,15 @@ type OpenIntent struct {
 	Time       uint64
 }
 
+// Revocation is a REVOKE entry as the replay saw it.
+type Revocation struct {
+	Key        [32]byte
+	Role       ledger.Role // the role the key held when it was revoked
+	Height     uint64
+	By         [32]byte
+	ReasonHash ledger.Hash
+}
+
 type EpochSpan struct {
 	From  uint64 // height of the entry that established this configuration
 	Trust ledger.TrustConfig
@@ -105,6 +114,7 @@ type State struct {
 	Proposals   []ProposalInfo // in log order
 	OpenIntents []OpenIntent
 	Completed   int
+	Revocations []Revocation // in log order
 }
 
 // Trust returns the configuration in force after the last entry.
@@ -173,6 +183,7 @@ type replayer struct {
 	votes     map[ledger.Hash]voteRec
 	agents    map[[32]byte]*agentRec
 	pending   []*proposalRec // activated validators-set changes not yet applied
+	revoked   map[[32]byte]bool
 }
 
 // Replay verifies the chain (authenticity) and then every governance rule
@@ -187,6 +198,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		proposals: map[ledger.Hash]*proposalRec{},
 		votes:     map[ledger.Hash]voteRec{},
 		agents:    map[[32]byte]*agentRec{},
+		revoked:   map[[32]byte]bool{},
 	}
 	for i := range entries {
 		e := &entries[i]
@@ -246,6 +258,9 @@ func (r *replayer) payload(e *ledger.Entry) ([]byte, error) {
 }
 
 func (r *replayer) require(e *ledger.Entry, roles ...ledger.Role) error {
+	if r.revoked[e.Author] {
+		return fail(e.Height, CodeRevokedKey, "this key has been revoked")
+	}
 	have, ok := r.trust().RoleOf(e.Author)
 	if ok {
 		for _, want := range roles {
@@ -291,6 +306,8 @@ func (r *replayer) apply(e *ledger.Entry) error {
 		return r.validators(e, b)
 	case ledger.KindFreeze:
 		return r.freeze(e, b)
+	case ledger.KindRevoke:
+		return r.revoke(e, b)
 	}
 	return fail(e.Height, CodeUnauthorizedAuthor, "unhandled entry kind")
 }
@@ -372,6 +389,8 @@ func (r *replayer) activate(e *ledger.Entry, b []byte) error {
 		return fail(e.Height, CodeWrongEpoch, "the proposal belongs to an earlier epoch")
 	case r.st.Frozen && prop.p.Tier > ledger.T0:
 		return fail(e.Height, CodeFrozen, "only T0 changes may activate during a freeze")
+	case r.revoked[prop.author]:
+		return fail(e.Height, CodeRevokedKey, "the key that proposed this change has been revoked")
 	case prop.blocked:
 		return fail(e.Height, CodeBlockedByVote, "a reviewer rejected or escalated this proposal")
 	}
@@ -517,4 +536,30 @@ func MinDelay(t ledger.Tier) uint64 {
 		return ^uint64(0)
 	}
 	return delays[t]
+}
+
+// revoke handles REVOKE (SPEC 10.3.1). One signer may withdraw an agent or
+// proposer key at once. It can never touch a key that votes, validates or
+// witnesses, so a single rogue security reviewer cannot stall approvals or
+// seize roles; those keys leave through a T4 VALIDATORS change.
+func (r *replayer) revoke(e *ledger.Entry, b []byte) error {
+	if err := r.require(e, ledger.RoleValidator, ledger.RoleSecurityReviewer); err != nil {
+		return err
+	}
+	v, err := ledger.DecodeRevoke(b)
+	if err != nil {
+		return decodeFail(e.Height, err)
+	}
+	role, ok := r.trust().RoleOf(v.Key)
+	switch {
+	case !ok:
+		return fail(e.Height, CodeBadRevocation, "the key holds no role in the epoch in force")
+	case role != ledger.RoleAgent && role != ledger.RoleProposer:
+		return fail(e.Height, CodeBadRevocation, "only agent and proposer keys can be revoked by one signer")
+	case r.revoked[v.Key]:
+		return fail(e.Height, CodeBadRevocation, "the key is already revoked")
+	}
+	r.revoked[v.Key] = true
+	r.st.Revocations = append(r.st.Revocations, Revocation{Key: v.Key, Role: role, Height: e.Height, By: e.Author, ReasonHash: v.ReasonHash})
+	return nil
 }

@@ -30,12 +30,14 @@ const (
 	KindAction     Kind = 4
 	KindValidators Kind = 5
 	KindFreeze     Kind = 6
+	KindRevoke     Kind = 7
 )
 
 var kindNames = map[Kind]string{
 	KindGenesis: "GENESIS", KindProposal: "PROPOSAL", KindVote: "VOTE",
 	KindActivate: "ACTIVATE", KindAction: "ACTION", KindValidators: "VALIDATORS",
 	KindFreeze: "FREEZE",
+	KindRevoke: "REVOKE",
 }
 
 func (k Kind) String() string {

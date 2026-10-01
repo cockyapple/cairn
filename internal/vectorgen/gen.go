@@ -190,6 +190,10 @@ func Build() *File {
 			fz := &ledger.Freeze{Scope: ledger.FreezeActivations, ReasonHash: h("reason: suspicious request pattern")}
 			return fz.Encode()
 		}, "s1"},
+		{ledger.KindRevoke, func([]ledger.Entry) []byte {
+			rv := &ledger.Revoke{Key: b.pub("a1"), ReasonHash: h("reason: agent key leaked")}
+			return rv.Encode()
+		}, "s1"},
 		{ledger.KindValidators, func([]ledger.Entry) []byte { return trust1.Encode() }, "v1"},
 	}
 

@@ -192,7 +192,11 @@ tiles tooling can cosign and serve it. That note carries no epoch or head, so a 
 attests the Merkle root only, which still commits to every entry. Replacing the format
 was rejected: it would rewrite SPEC section 6, the vectors and the quorum rules for no
 gain in the governance layer. Decide the exact mapping before the log server is built.
-(2) *`REVOKE`.* A new entry kind, no delay, signed by a security reviewer or a validator
+(2) *`REVOKE`* (BUILT). A new entry kind (7), no delay, signed by one validator or security
+reviewer, naming one key. As built it covers agent and proposer keys only and is permanent:
+a single signer must not be able to remove a reviewer or validator, which would let one
+compromised key stall quorum. Those roles still change through T4 VALIDATORS. A revoked
+proposer cannot get an unactivated proposal activated. Original wording: signed by a security reviewer or a validator
 quorum, naming one key. The governance replay stops accepting that key from the next
 entry. It must be limited to revoking, never granting, so it cannot be used to seize
 roles. A freeze must not block it (I3 spirit).

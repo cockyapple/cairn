@@ -60,6 +60,7 @@ parsing ambiguity. It is advisory: order comes from height.
 | 4 | ACTION | `string action_type, [32] args_hash, [32] result_hash, [32] prev_action_hash` |
 | 5 | VALIDATORS | `TrustConfig` (a new epoch) |
 | 6 | FREEZE | `u8 scope, [32] reason_hash` (scope 1 = freeze activations, scope 2 = lift the freeze) |
+| 7 | REVOKE | `[32] public_key, [32] reason_hash` |
 
 GENESIS `spec_version` MUST be 1 and its TrustConfig epoch MUST be 0 (`bad_payload`).
 `TrustConfig` = `u64 epoch, u32 n, n x (u8 role, [32] public_key), u32 witness_threshold`.
@@ -157,6 +158,7 @@ applied VALIDATORS entry). Payload blobs are required for every entry.
 | VALIDATORS | validator |
 | FREEZE (scope 1) | validator or security reviewer |
 | FREEZE (scope 2, lift) | validator |
+| REVOKE | validator or security reviewer |
 
 A key holds exactly one role, so a proposer can never vote on its own proposal
 and an agent can never vote or activate (I1) by construction, not by an extra
@@ -206,6 +208,24 @@ the only tier that can only tighten, so it is the emergency rollback path: to
 roll back a loosening, propose its inverse as T0. Freezing a frozen log, or
 lifting an unfrozen one, is `bad_freeze_state`.
 
+### 10.3.1 REVOKE (ADR-20)
+
+A REVOKE names one public key and ends its authority at once, from the next entry
+on, without waiting for a new epoch. It is the answer to a stolen key, which
+otherwise stays valid until a T4 change clears its 14-day delay.
+
+- Written by a validator or a security reviewer. A freeze does not block it.
+- The target must hold the **agent or proposer** role in the epoch in force and not
+  be revoked already (`bad_revocation`). Keys that vote, validate or witness cannot
+  be revoked by one signer: otherwise a single rogue security reviewer could stall
+  every approval. Those keys leave through a T4 VALIDATORS change.
+- A revoked key stays revoked for good, whatever later epochs say. Its entries are
+  rejected (`revoked_key`), and so is the activation of any proposal it wrote that
+  was not yet activated (`revoked_key`). Changes already activated stand.
+- Open intents of a revoked agent stay open and are reported: its completions are
+  refused, so the gap is visible.
+- REVOKE only removes authority. It cannot grant a role.
+
 ### 10.4 ACTION: intent, then completion (ADR-13)
 
 An ACTION whose `result_hash` is zero is an **intent**. One with a non-zero
@@ -244,9 +264,9 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
   no votes and no delay. A verifier can pass a `MinTier` policy; a proposal below
   its floor is rejected (`tier_too_low`). The policy is not recorded in the log,
   so every verifier has to be given the same one.
-- **Emergency key revocation.** There is no `REVOKE` entry. A stolen key stays valid until a
-  change that removes it clears its tier delay; a freeze does not stop it signing. Planned
-  (ADR-20), not built.
+- **Revoking keys that vote, validate or witness.** REVOKE (10.3.1) covers agent and
+  proposer keys only. A stolen reviewer, validator or witness key stays valid until a
+  T4 VALIDATORS change clears its delay.
 - **I7** is enforced only as a record: the log shows an intent before the
   completion. Whether a gatekeeper really waited for the log is Phase 2.
 
@@ -261,4 +281,4 @@ keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
 `already_activated`, `bad_vote_reference`, `blocked_by_vote`,
 `insufficient_approvals`, `delay_too_short`, `delay_not_elapsed`, `frozen`,
 `bad_freeze_state`, `bad_validators_change`, `bad_action_chain`,
-`bad_action_completion`, `tier_too_low`, `future_entry`.
+`bad_action_completion`, `tier_too_low`, `future_entry`, `bad_revocation`, `revoked_key`.

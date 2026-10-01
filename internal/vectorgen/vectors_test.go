@@ -63,7 +63,7 @@ func TestEveryEntryKindHasAVector(t *testing.T) {
 		seen[e.Kind] = true
 	}
 	for _, k := range []ledger.Kind{ledger.KindGenesis, ledger.KindProposal, ledger.KindVote,
-		ledger.KindActivate, ledger.KindAction, ledger.KindValidators, ledger.KindFreeze} {
+		ledger.KindActivate, ledger.KindAction, ledger.KindValidators, ledger.KindFreeze, ledger.KindRevoke} {
 		if !seen[k.String()] {
 			t.Errorf("no vector for %s", k)
 		}
@@ -128,6 +128,10 @@ func TestPayloadVectorsDecodeAndRehash(t *testing.T) {
 		case "FREEZE":
 			var v ledger.Freeze
 			v, err = ledger.DecodeFreeze(b)
+			re = v.Encode()
+		case "REVOKE":
+			var v ledger.Revoke
+			v, err = ledger.DecodeRevoke(b)
 			re = v.Encode()
 		default:
 			t.Fatalf("unhandled kind %s", p.Kind)

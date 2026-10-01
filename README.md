@@ -131,7 +131,8 @@ exists today, and what does not, so nothing is oversold:
 | Gatekeeper: capability policy, intent logged before the action, refusals logged, only activated config runs, typed message bus (`gatekeeper`) | Built and tested. It is a policy layer in one process, **not an OS sandbox**: a compromised agent process is not contained |
 | Static review page and eval result hashing (`cmd/cairn-review`, `eval`) | Built. The log records which eval result reviewers saw, not that the eval ran honestly |
 | Per-agent OS sandbox | **Not yet** |
-| Emergency key revocation, sequencer rate limits, provenance tracking in the gatekeeper, human-review pause | **Planned** after a survey of related projects; see ROADMAP |
+| Emergency revocation of agent and proposer keys (`REVOKE`) | **Built** (SPEC 10.3.1) |
+| Sequencer rate limits, provenance tracking in the gatekeeper, human-review pause | **Planned** after a survey of related projects; see ROADMAP |
 | Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |

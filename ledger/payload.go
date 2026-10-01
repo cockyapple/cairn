@@ -218,3 +218,30 @@ func DecodeFreeze(b []byte) (Freeze, error) {
 	}
 	return f, nil
 }
+
+// Revoke withdraws one key's authority at once, without waiting for a new epoch.
+type Revoke struct {
+	Key        [32]byte
+	ReasonHash Hash
+}
+
+func (v *Revoke) Encode() []byte {
+	var w wire.Writer
+	w.Fixed(v.Key[:])
+	w.Fixed(v.ReasonHash[:])
+	return w.Out()
+}
+
+func DecodeRevoke(b []byte) (Revoke, error) {
+	var v Revoke
+	r := wire.NewReader(b)
+	copy(v.Key[:], r.Fixed(32))
+	copy(v.ReasonHash[:], r.Fixed(32))
+	if err := r.Done(); err != nil {
+		return v, fail(CodeBadPayload, err.Error())
+	}
+	if smallOrder(v.Key) {
+		return v, fail(CodeBadPayload, "small-order public key")
+	}
+	return v, nil
+}

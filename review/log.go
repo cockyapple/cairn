@@ -131,6 +131,11 @@ func (l *Log) Freeze(key ed25519.PrivateKey, reason []byte) (ledger.Hash, error)
 	return l.append(ledger.KindFreeze, key, f.Encode())
 }
 
+func (l *Log) Revoke(key ed25519.PrivateKey, target [32]byte, reason []byte) (ledger.Hash, error) {
+	v := ledger.Revoke{Key: target, ReasonHash: l.store(reason)}
+	return l.append(ledger.KindRevoke, key, v.Encode())
+}
+
 func (l *Log) LiftFreeze(key ed25519.PrivateKey, reason []byte) (ledger.Hash, error) {
 	f := ledger.Freeze{Scope: ledger.FreezeLift, ReasonHash: l.store(reason)}
 	return l.append(ledger.KindFreeze, key, f.Encode())

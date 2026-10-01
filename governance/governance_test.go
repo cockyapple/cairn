@@ -399,6 +399,8 @@ func TestViolations(t *testing.T) {
 			b := w.action("agent", "spend", 2, 0, a)
 			w.action("agent", "spend", 2, 5, b)
 		}},
+		{"only agent and proposer keys can be revoked", CodeBadRevocation, func(w *world) { w.revoke("sec", "rev1") }},
+		{"a revoked key cannot write", CodeRevokedKey, func(w *world) { w.revoke("val", "agent"); w.action("agent", "spend", 1, 0, zero) }},
 		{"a malformed payload keeps the ledger code", ledger.CodeBadPayload, func(w *world) {
 			w.put(ledger.KindActivate, "val", []byte("short"))
 		}},

@@ -98,8 +98,8 @@ func run(args []string, out, errw io.Writer) int {
 	if err != nil {
 		return failed(out, err)
 	}
-	fmt.Fprintf(out, "ok governance: epoch %d, frozen=%t, %d activations, %d actions completed, %d open intents\n",
-		st.Trust().Epoch, st.Frozen, len(st.Activations), st.Completed, len(st.OpenIntents))
+	fmt.Fprintf(out, "ok governance: epoch %d, frozen=%t, %d activations, %d actions completed, %d open intents, %d revoked keys\n",
+		st.Trust().Epoch, st.Frozen, len(st.Activations), st.Completed, len(st.OpenIntents), len(st.Revocations))
 
 	if *cpPath != "" {
 		cb, err := os.ReadFile(*cpPath)
