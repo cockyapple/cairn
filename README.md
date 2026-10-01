@@ -100,7 +100,8 @@ itself. The full list is in the [constitution](docs/CONSTITUTION.md).
 1. **Write the protocol, never the primitives.** SHA-256 and Ed25519 from the Go
    standard library. No third-party dependencies in the core.
 2. **Small trusted core.** The verifier must stay small enough to read in an afternoon
-   (budget: 1,500 lines; currently about 918 lines including comments).
+   (budget: 1,500 lines. Wire and ledger are about 1,150 lines including comments;
+   governance replay adds about 590 more and is not counted against that budget yet.)
 3. **Conformance lives in vectors, not prose.** `testdata/vectors-v1.json` is
    language-neutral, so a second implementation can prove the spec is implementable.
 4. **The model is an untrusted component.** No guarantee depends on which model is
