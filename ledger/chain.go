@@ -4,7 +4,7 @@ import "fmt"
 
 // VerifyChain checks structure only: genesis first and only first, contiguous
 // heights, correct prev-hash links and valid signatures. Whether an author is
-// allowed to write a given kind is the review state machine's job (Phase 2).
+// allowed to write a given kind is the governance package's job.
 // Checks run in a fixed order so each failure has exactly one code.
 func VerifyChain(entries []Entry) error {
 	if len(entries) == 0 {

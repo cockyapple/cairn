@@ -67,6 +67,8 @@ Roles: 1 validator, 2 witness, 3 reviewer, 4 security reviewer, 5 proposer, 6 ag
 A key holds exactly one role. At least one validator. `witness_threshold` MUST NOT
 exceed the witness count. Tiers 0 to 4 map to T0 to T4 (constitution section 3).
 Unknown kinds, tiers, roles, verdicts and scopes are rejected, not ignored.
+An ACTION is either an intent (zero `result_hash`) or a completion (non-zero);
+section 10.4 gives the pairing and chaining rules.
 
 ## 4. Chain rules
 
@@ -105,21 +107,28 @@ most `(n-1)/3` are faulty. For n = 1, 4, 7 the quorum is 1, 3, 5.
 
 ## 7. Error codes
 
-Stable strings, asserted exactly by the vectors: `bad_length`, `bad_version`,
+Stable strings. The vectors assert every one except the last, which only the
+Go tests cover so far. Governance adds more in section 10.6.
+
+`bad_length`, `bad_version`,
 `unknown_kind`, `bad_genesis`, `duplicate_genesis`, `bad_height`,
 `bad_prev_hash`, `bad_signature`, `bad_payload`, `size_mismatch`,
 `root_mismatch`, `head_mismatch`, `epoch_mismatch`, `below_quorum`,
 `below_witness_threshold`, `duplicate_signer`, `bad_trust_config`,
-`bad_checkpoint`, `unknown_signer`, `unsorted_signers`.
+`bad_checkpoint`, `unknown_signer`, `unsorted_signers`, `bad_proof`.
 
-## 8. What Phase 0 does and does not check
+## 8. What each layer checks
 
-Checked here: structure, hashes, signatures, chain linkage, Merkle roots,
-checkpoint quorum. **Not yet checked** (Phase 1 state machine): that an author
-holds a role permitted to write that kind (for example an agent key writing
-VOTE), tier delays, vote counting, freeze semantics and the constitution
-invariants. A chain that passes Phase 0 verification is authentic and
-untampered; it is not yet known to be *lawful*. Do not claim more.
+The **ledger** package (this spec's sections 1 to 7) checks authenticity:
+structure, hashes, signatures, chain linkage, Merkle roots and proofs,
+checkpoint quorum. A chain that passes it is untampered. It says nothing about
+whether the chain is *lawful*.
+
+The **governance** package (section 10) replays a verified chain and checks
+lawfulness: roles, approvals, delays, freeze, validator epochs and the ACTION
+chain. It enforces invariants I1 and I3, and keeps I7 as an auditable intent
+trail. It does **not** enforce I4, I5, I6, I8, I9, I11 or I12; section 10.5
+says why. Do not claim more than that.
 
 ## 9. Test vectors
 
@@ -128,3 +137,113 @@ roots for 0 to 9 leaves, payload encodings, and invalid chain and checkpoint
 cases with exact expected error codes. Keys are derived from public seeds and
 are for testing only. The vectors are language-neutral so an independent
 verifier can be written without reading the Go.
+
+## 10. Governance rules
+
+`governance.Replay` runs `VerifyChain` and then applies these rules in order,
+entry by entry, stopping at the first violation. Roles come from the
+TrustConfig **in force before the entry** (the epoch is that of the last
+applied VALIDATORS entry). Payload blobs are required for every entry.
+
+### 10.1 Who may write what
+
+| Kind | Author's role |
+|------|---------------|
+| GENESIS | validator in the GENESIS TrustConfig itself |
+| PROPOSAL | proposer or agent |
+| VOTE | reviewer or security reviewer |
+| ACTIVATE | validator |
+| ACTION | agent |
+| VALIDATORS | validator |
+| FREEZE (scope 1) | validator or security reviewer |
+| FREEZE (scope 2, lift) | validator |
+
+A key holds exactly one role, so a proposer can never vote on its own proposal
+and an agent can never vote or activate (I1) by construction, not by an extra
+check.
+
+### 10.2 Changes
+
+- Entry `time` never decreases from one entry to the next (`time_regression`).
+  Time stays advisory (ADR-5): the rule only bounds how far a proposal can be
+  backdated to shorten its delay, to the time of the entry before it.
+- Targets `cairn/validators`, `cairn/constitution` and `cairn/gatekeeper` can
+  only be proposed at tier T4; any other target beginning `cairn/` is reserved
+  (`reserved_target`).
+- A proposal belongs to the epoch in which it was written. A VALIDATORS entry
+  voids every earlier open proposal (`wrong_epoch`).
+- A reviewer votes at most once per proposal (`duplicate_vote`). Any reject or
+  escalate vote blocks activation for good (`blocked_by_vote`); to try again,
+  propose again.
+- ACTIVATE lists the approving VOTE entries. Each must approve this proposal,
+  come from a distinct author who **still** holds a reviewer or security
+  reviewer role (`bad_vote_reference`), and the counts must meet the tier
+  (`insufficient_approvals`):
+
+  | Tier | Approvals | of which security | Minimum delay |
+  |-----:|----------:|------------------:|--------------:|
+  | T0 | 0 | 0 | 0 |
+  | T1 | 1 | 0 | 24 h |
+  | T2 | 2 | 1 | 72 h |
+  | T3 | 3 | 1 | 7 d |
+  | T4 | 3 | 1 | 14 d |
+
+- `effective_after` must be at least the proposal entry's time plus the delay
+  (`delay_too_short`). A proposal activates once (`already_activated`).
+- A VALIDATORS entry must carry epoch current + 1 and a TrustConfig whose
+  encoding hashes (plain SHA-256) to the `diff_hash` of an activated, unused
+  `cairn/validators` proposal (`bad_validators_change`), and its own `time` must
+  not precede that activation's `effective_after` (`delay_not_elapsed`).
+- A checkpoint of size n is judged by the TrustConfig in force after entry n-1
+  has been applied; a checkpoint that covers a VALIDATORS entry is therefore
+  signed by the **new** set.
+
+### 10.3 Freeze
+
+While frozen, ACTIVATE is rejected except for T0 proposals, and VALIDATORS is
+rejected (`frozen`). Reading, verifying, ACTION and VOTE continue (I3). T0 is
+the only tier that can only tighten, so it is the emergency rollback path: to
+roll back a loosening, propose its inverse as T0. Freezing a frozen log, or
+lifting an unfrozen one, is `bad_freeze_state`.
+
+### 10.4 ACTION: intent, then completion (ADR-13)
+
+An ACTION whose `result_hash` is zero is an **intent**. One with a non-zero
+`result_hash` is a **completion**: it must repeat the `action_type` and
+`args_hash` of the author's *oldest* open intent and closes it
+(`bad_action_completion` otherwise). Every ACTION's `prev_action_hash` must be
+the entry hash of the same author's previous ACTION, or zero for its first
+(`bad_action_chain`). The replay reports every intent still open; an old open
+intent is a signal (crash, refusal or concealment), not itself a violation.
+
+### 10.5 What is not enforced, and why
+
+- **I4 (loosening is slower than tightening).** Whether a change loosens a
+  limit depends on what the target and diff *mean*, which the ledger does not
+  parse. Tiers are chosen by the proposer and checked by reviewers. Tier
+  minimums, the reserved T4 targets and the freeze-time T0 rule are the
+  mechanical part; the semantic part is a reviewer duty.
+- **I5, I6, I8, I9, I12** concern the gatekeeper and the agent runtime
+  (Phase 2 and later), not the log.
+- **I11 (delegation only narrows).** There is no wire format yet for capability
+  grants or delegation, so there is nothing to check. It is a Phase 1 format
+  task that is not done.
+- **Time.** Delays are measured on entry `time` values, which are claims. They
+  are bounded by monotonicity and, in Stage A, by the sequencer refusing
+  entries far from its own clock; a consumer that loads a change must compare
+  `effective_after` with a clock it trusts.
+- **I7** is enforced only as a record: the log shows an intent before the
+  completion. Whether a gatekeeper really waited for the log is Phase 2.
+
+### 10.6 Error codes
+
+Governance failures add these stable codes to section 7's. Malformed payloads
+keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
+`TestSpecGovernanceCodesMatchCode` keeps this list equal to the code.
+
+`unauthorized_author`, `bad_blob`, `time_regression`, `constitution_mismatch`,
+`reserved_target`, `unknown_proposal`, `wrong_epoch`, `duplicate_vote`,
+`already_activated`, `bad_vote_reference`, `blocked_by_vote`,
+`insufficient_approvals`, `delay_too_short`, `delay_not_elapsed`, `frozen`,
+`bad_freeze_state`, `bad_validators_change`, `bad_action_chain`,
+`bad_action_completion`.

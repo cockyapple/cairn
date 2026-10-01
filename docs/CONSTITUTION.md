@@ -27,8 +27,8 @@ manipulated agent can do.
 | T4 | Gatekeeper code, validator set, this constitution | 14 d |
 
 Each tier above T0 also needs approvals from distinct reviewers, and T2 and
-above need at least one security reviewer. Exact counts are set in the trust
-configuration, not here.
+above need at least one security reviewer. The exact counts and delays are fixed
+by SPEC section 10.2 so every verifier applies the same ones.
 
 ## 4. Invariants
 
@@ -64,7 +64,15 @@ These hold regardless of any vote.
 
 ## 5. Enforcement status
 
-Phase 0 writes these invariants and verifies log authenticity. Code that
-enforces I1, I3, I4, I7, I9 and I11 arrives with the Phase 1 state machine and the
-Phase 2 gatekeeper. Until then they are commitments, not guarantees, and this
-repository must not claim otherwise.
+The Phase 1 governance replay (SPEC section 10) enforces **I1** (no
+self-governance, by role) and **I3** (a freeze stops activations only, and T0
+rollbacks still pass). It records **I7** as an auditable trail: an intent
+entry precedes its completion, but nothing yet proves a gatekeeper waited for
+it. **I2** holds only to the extent that consumers read configuration from the
+ledger, which no code here does yet.
+
+Not enforced by any code today: **I4** (it needs the ledger to understand what a
+change means; only tier minimums and reserved T4 targets are mechanical), **I5,
+I6, I8, I9, I12** (gatekeeper and agent runtime, Phase 2 and later) and **I11**
+(there is no wire format for grants or delegation yet). Until they are, they are
+commitments, not guarantees, and this repository must not claim otherwise.

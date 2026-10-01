@@ -32,7 +32,7 @@ func TestSpecErrorCodesMatchCode(t *testing.T) {
 		ledger.CodeDuplicateGenesis, ledger.CodeBadHeight, ledger.CodeBadPrevHash, ledger.CodeBadSignature,
 		ledger.CodeBadPayload, ledger.CodeSizeMismatch, ledger.CodeRootMismatch, ledger.CodeHeadMismatch,
 		ledger.CodeEpochMismatch, ledger.CodeBelowQuorum, ledger.CodeBelowWitnesses, ledger.CodeDuplicateSigner,
-		ledger.CodeBadTrustConfig, ledger.CodeBadCheckpointLen, ledger.CodeUnknownSigner, ledger.CodeUnsortedSigners,
+		ledger.CodeBadTrustConfig, ledger.CodeBadCheckpointLen, ledger.CodeUnknownSigner, ledger.CodeUnsortedSigners, ledger.CodeBadProof,
 	}
 	sort.Strings(spec)
 	sort.Strings(code)

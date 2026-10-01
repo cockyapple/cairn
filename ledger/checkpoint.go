@@ -139,7 +139,7 @@ func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig)
 				return fail(CodeUnsortedSigners, "signatures must be in ascending public-key order")
 			}
 		}
-		role, ok := trust.roleOf(cs.Public)
+		role, ok := trust.RoleOf(cs.Public)
 		if !ok {
 			return fail(CodeUnknownSigner, "signature by a key outside the trust configuration")
 		}

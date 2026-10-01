@@ -26,6 +26,7 @@ const (
 	CodeBadCheckpointLen = "bad_checkpoint"
 	CodeUnknownSigner    = "unknown_signer"
 	CodeUnsortedSigners  = "unsorted_signers"
+	CodeBadProof         = "bad_proof"
 )
 
 type Error struct {

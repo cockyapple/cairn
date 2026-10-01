@@ -100,7 +100,8 @@ func (t *TrustConfig) validate() error {
 	return nil
 }
 
-func (t *TrustConfig) roleOf(pub [32]byte) (Role, bool) {
+// RoleOf reports the role a key holds in this configuration.
+func (t *TrustConfig) RoleOf(pub [32]byte) (Role, bool) {
 	for _, k := range t.Keys {
 		if k.Public == pub {
 			return k.Role, true

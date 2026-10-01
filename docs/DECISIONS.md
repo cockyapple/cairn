@@ -85,3 +85,21 @@ drop one of its own actions. The state machine reports open intents with their
 age: an intent with no completion is itself a signal (crash, refusal or
 concealment). Rejected alternative: a separate RESULT kind, which would add a
 wire kind and vectors for no extra guarantee.
+
+**ADR-14. Governance parameters are fixed in the spec, not in the TrustConfig
+(DECIDED, Phase 1).**
+Why: the constitution said approval counts "are set in the trust
+configuration", but the TrustConfig carries only keys and a witness threshold,
+and an outside verifier can only check rules it can read from the spec. Putting
+counts in the TrustConfig would also mean changing the wire format a third time
+before freezing. Decision: the per-tier approvals, security-reviewer minimums
+and delays are constants in SPEC section 10.2. Raising them is a spec version
+change, not a ledger entry. Related choices made together: any reject or
+escalate vote vetoes a proposal for good; a VALIDATORS entry voids open
+proposals; during a freeze only T0 activations pass, which doubles as the
+emergency rollback path; validator-set changes must be authorised by an
+activated T4 proposal whose `diff_hash` is the hash of the new TrustConfig.
+Cost: one rogue reviewer can block a proposal (liveness over safety is the
+wrong trade here), and small deployments need at least 3 reviewers including a
+security reviewer before T2 and above can ever pass. Not decided here: I4,
+whose enforcement needs the ledger to understand what a change means.
