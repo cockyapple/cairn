@@ -76,3 +76,25 @@ func TestWrongConstitutionExitsOneAndShowsNothing(t *testing.T) {
 		t.Fatal("a log that fails its constitution check must show only the failure")
 	}
 }
+
+func TestUseClockRejectsAFutureDatedLog(t *testing.T) {
+	v, p := k("v"), k("p")
+	tc := ledger.TrustConfig{Keys: []ledger.Key{{Role: ledger.RoleValidator, Public: pub(v)}, {Role: ledger.RoleProposer, Public: pub(p)}}}
+	var n uint64 = 4_000_000_000
+	l, err := review.New(v, ledger.BlobHash([]byte("c")), tc, func() uint64 { n++; return n })
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "b")
+	if err := review.SaveBundle(dir, l.Entries, l.Blobs); err != nil {
+		t.Fatal(err)
+	}
+	var e bytes.Buffer
+	out := filepath.Join(t.TempDir(), "r.html")
+	if c := run([]string{"-bundle", dir, "-out", out}, &e); c != 0 {
+		t.Fatalf("without the clock: %d", c)
+	}
+	if c := run([]string{"-bundle", dir, "-out", out, "-use-clock"}, &e); c != 1 {
+		t.Fatalf("with the clock: %d %s", c, e.String())
+	}
+}

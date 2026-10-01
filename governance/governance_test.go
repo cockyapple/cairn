@@ -425,6 +425,9 @@ func TestViolations(t *testing.T) {
 		t.Fatalf("constitution mismatch: %v", err)
 	}
 	covered[CodeConstitutionMismatch] = true
+	// tier_too_low and future_entry are options too; TestVerifierTierFloor and
+	// TestVerifierClockRejectsFutureEntries assert them.
+	covered[CodeTierTooLow], covered[CodeFutureEntry] = true, true
 	good := ledger.BlobHash([]byte("constitution"))
 	if _, err := Replay(w.entries, w.blobs, Options{ConstitutionHash: &good}); err != nil {
 		t.Fatalf("matching constitution rejected: %v", err)
@@ -473,5 +476,45 @@ func TestReplayIsDeterministic(t *testing.T) {
 	b, err2 := w.replay()
 	if err1 != nil || err2 != nil || fmt.Sprint(a) != fmt.Sprint(b) {
 		t.Fatal("replay differs between runs")
+	}
+}
+
+func TestVerifierTierFloor(t *testing.T) {
+	w := newWorld(t)
+	w.propose("prop", ledger.T0, "agent/app")
+	floor := func(target string) ledger.Tier {
+		if target == "agent/app" {
+			return ledger.T2
+		}
+		return ledger.T0
+	}
+	if _, err := Replay(w.entries, w.blobs, Options{}); err != nil {
+		t.Fatalf("no policy: %v", err)
+	}
+	_, err := Replay(w.entries, w.blobs, Options{MinTier: floor})
+	if ErrCode(err) != CodeTierTooLow {
+		t.Fatalf("want %s, got %v", CodeTierTooLow, err)
+	}
+	w2 := newWorld(t)
+	w2.propose("prop", ledger.T2, "agent/app")
+	if _, err := Replay(w2.entries, w2.blobs, Options{MinTier: floor}); err != nil {
+		t.Fatalf("meets the floor: %v", err)
+	}
+}
+
+func TestVerifierClockRejectsFutureEntries(t *testing.T) {
+	w := newWorld(t)
+	w.now += 14 * day
+	w.propose("prop", ledger.T0, "agent/app")
+	if _, err := Replay(w.entries, w.blobs, Options{}); err != nil {
+		t.Fatalf("no clock: %v", err)
+	}
+	real := w.entries[0].Time
+	_, err := Replay(w.entries, w.blobs, Options{Now: real + 60, MaxSkew: 300})
+	if ErrCode(err) != CodeFutureEntry {
+		t.Fatalf("want %s, got %v", CodeFutureEntry, err)
+	}
+	if _, err := Replay(w.entries, w.blobs, Options{Now: w.now, MaxSkew: 300}); err != nil {
+		t.Fatalf("clock caught up: %v", err)
 	}
 }

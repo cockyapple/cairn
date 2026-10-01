@@ -87,6 +87,7 @@ type cardData struct {
 	DiffNote                                          string
 	Diff                                              []diffRow
 	Problem                                           string
+	Truncated                                         string
 }
 
 func short(b []byte) string { return hex.EncodeToString(b[:6]) }
@@ -157,8 +158,8 @@ func card(st *governance.State, blobs governance.Blobs, p governance.ProposalInf
 		for _, cs := range m.Eval.Cases {
 			c.Eval = append(c.Eval, evalRowOf(cs))
 		}
-		if m.Eval.CandidateHash != p.Proposal.DiffHash {
-			c.Problem = "the eval result was computed for a different artifact than this proposal carries"
+		if m.EvalProblem != "" {
+			c.Problem = "Do not trust the eval table: " + m.EvalProblem + "."
 		}
 	}
 	if m.HasPrevious {
@@ -168,13 +169,17 @@ func card(st *governance.State, blobs governance.Blobs, p governance.ProposalInf
 	}
 	d, err := Diff(m.Previous, m.Artifact)
 	if err != nil {
-		c.DiffNote = "Artifacts are too large to diff; showing nothing rather than a partial view."
-		return c
+		c.DiffNote = "Too large to diff against the earlier version, so no changes are marked. The full proposed content follows:"
+		d = d[:0]
+		for _, ln := range splitLines(m.Artifact) {
+			d = append(d, DiffLine{Op: Same, Text: ln})
+		}
 	}
 	const maxRows = 2000
 	for i, l := range d {
 		if i == maxRows {
 			c.Diff = append(c.Diff, diffRow{"", "same", fmt.Sprintf("... %d more lines not shown", len(d)-maxRows)})
+			c.Truncated = fmt.Sprintf("This view is incomplete: %d lines are not shown. Do not approve what you have not read; use the bundle for the rest.", len(d)-maxRows)
 			break
 		}
 		row := diffRow{Mark: " ", Class: "same", Text: l.Text}
@@ -274,6 +279,7 @@ p.rat{white-space:pre-wrap;margin:.2rem 0}
 <div class="sub">proposed by key {{.Proposer}} at {{.Time}}</div>
 <div class="sub">needs {{.Need}}; delay before it takes effect: {{.Delay}}{{if .Effective}}; effective after {{.Effective}}{{end}}</div>
 {{if .Problem}}<div class="notice fail" style="margin-top:.7rem">{{.Problem}}</div>{{end}}
+{{if .Truncated}}<div class="notice fail" style="margin-top:.7rem">{{.Truncated}}</div>{{end}}
 <h3>Rationale</h3><p class="rat">{{.Rationale}}</p>
 <h3>Votes</h3>
 {{if .Votes}}<div class="tw"><table><tr><th>Key</th><th>Role</th><th>Verdict</th><th>Comment</th></tr>

@@ -155,3 +155,55 @@ func TestBundleRoundTripThroughRender(t *testing.T) {
 		t.Fatal("proposal or checkpoint note missing")
 	}
 }
+
+func TestMismatchedEvalIsFlaggedEverywhere(t *testing.T) {
+	f := newFixture(t)
+	v1 := []byte("a\nb\n")
+	safe := []byte("a\nb\nnever\n")
+	evil := []byte("a\nb\nexfiltrate\n")
+	res, _ := eval.Run("s", suite, v1, safe, lineScorer) // computed for `safe`
+	if _, err := f.l.Propose(f.prop, ledger.T1, "prompt/x", v1, []byte("base"), nil); err != nil {
+		t.Fatal(err)
+	}
+	p, err := f.l.Propose(f.prop, ledger.T1, "prompt/x", evil, []byte("sneaky"), res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := review.Gather(f.l.State(), f.l.Blobs, p)
+	if err != nil || m.EvalProblem == "" {
+		t.Fatalf("the mismatch must be flagged: %v %q", err, m.EvalProblem)
+	}
+	var page bytes.Buffer
+	if err := review.Render(&page, f.l.Entries, f.l.Blobs, f.l.Opt, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(page.String(), "Do not trust the eval table") {
+		t.Error("page does not warn")
+	}
+	model := &fakeModel{text: `{"verdict":"reject","reason":"x"}`}
+	_, _ = (&review.LLMReviewer{Label: "m", Model: model}).Review(context.Background(), m)
+	prompt := model.got.User
+	if !strings.Contains(prompt, "does not apply to this change") || strings.Contains(prompt, "candidate mean") {
+		t.Errorf("the model was shown scores for a different artifact:\n%s", prompt)
+	}
+}
+
+func TestHugeArtifactStillShowsContent(t *testing.T) {
+	f := newFixture(t)
+	big := bytes.Repeat([]byte("line of text\n"), 2500)
+	big2 := append(append([]byte(nil), big...), []byte("one more\n")...)
+	if _, err := f.l.Propose(f.prop, ledger.T0, "doc/big", big, []byte("a"), nil); err != nil {
+		t.Fatal(err)
+	}
+	q, _ := f.l.Propose(f.prop, ledger.T0, "doc/big", big2, []byte("b"), nil)
+	if _, err := f.l.Activate(f.val, q); err != nil {
+		t.Fatal(err)
+	}
+	var page bytes.Buffer
+	if err := review.Render(&page, f.l.Entries, f.l.Blobs, f.l.Opt, nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(page.String(), "line of text") || !strings.Contains(page.String(), "This view is incomplete") {
+		t.Error("an oversized artifact must still show content and say when the view is partial")
+	}
+}

@@ -70,7 +70,9 @@ func (r *LLMReviewer) prompt(m *Material) (string, error) {
 		body.Write(m.Artifact)
 	}
 	fmt.Fprintf(&body, "\n\nProposer's rationale:\n%s\n", m.Rationale)
-	if m.Eval != nil {
+	if m.EvalProblem != "" {
+		fmt.Fprintf(&body, "\nWARNING: an eval result is attached but it does not apply to this change (%s). Ignore its scores; treat the change as having no eval.\n", m.EvalProblem)
+	} else if m.Eval != nil {
 		s := m.Eval.Summary()
 		fmt.Fprintf(&body, "\nEval %q (scores in basis points, 10000 = perfect): baseline mean %d, candidate mean %d, delta %d, regressions %d of %d cases.\n",
 			m.Eval.Suite, s.BaselineMean, s.CandidateMean, s.Delta, len(s.Regressions), len(m.Eval.Cases))

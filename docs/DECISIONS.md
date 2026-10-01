@@ -103,3 +103,63 @@ Cost: one rogue reviewer can block a proposal (liveness over safety is the
 wrong trade here), and small deployments need at least 3 reviewers including a
 security reviewer before T2 and above can ever pass. Not decided here: I4,
 whose enforcement needs the ledger to understand what a change means.
+
+**ADR-15. A proposal commits to the whole artifact, and reviewers see a diff
+(DECIDED, Phase 2).**
+Why: `diff_hash` was named for a patch, but a patch is meaningless without the
+text it applies to, and the loader has to serve exactly what was approved.
+Decision: `diff_hash` is the hash of the full proposed artifact. The review
+page and the LLM reviewer compute a line diff against the artifact most
+recently activated for the same target before this proposal. `eval_hash` points
+to a canonical eval result (suite name, hash of baseline, hash of candidate,
+per-case scores). The review layer checks that the result names this artifact
+and the artifact now in force; if not, the scores are marked untrusted and an
+LLM reviewer is told to ignore them (an external audit found a proposer could
+otherwise attach a flattering result computed for something else). What the
+ledger proves: which result reviewers saw. It does not prove the eval was run
+honestly or that the cases were any good. Cost: every version is stored in full.
+
+**ADR-16. Reviewers are keys; the council decides nothing (DECIDED, Phase 2).**
+Why: the same log should work whether changes are approved by people, by models,
+or by a mix, and a model that fails must not become a yes. Decision: a
+`Reviewer` is anything that returns approve, reject or escalate for the material
+it is shown; a `Council` runs members concurrently and appends one VOTE per
+member that answered, signed by that member's own key. A member that errors,
+times out, panics or returns something unparseable casts no vote, so silence
+never counts as approval. The council never activates: governance does, at
+ACTIVATE, by counting distinct reviewer keys against the tier. An LLM reviewer
+sees untrusted text, so its prompt fences the content in random boundary
+markers, asks for one strict JSON object, refuses to review what does not fit
+in full (it will not approve what it could not read) and rejects trailing text.
+None of that makes injection impossible. Limits worth stating: models from one
+vendor fail in correlated ways, so quorum of three copies of one model is closer
+to one opinion; a community of reviewers needs an identity story, because keys
+are free; and the log proves who voted, not that the reasoning was sound.
+
+**ADR-17. The gatekeeper is a policy layer, not a sandbox (DECIDED, Phase 2).**
+Why: invariant I7 needs an intent on the log before an action runs, and the
+threat model needs agents to run only activated configuration. Decision: for
+each action the gatekeeper checks size, capability and config, writes the
+intent, runs the handler under a timeout, then writes the completion. If the
+intent cannot be written, the action does not run. A refusal is also an intent
+plus a completion whose result starts `refused`. Result blobs start with a
+status line (`ok`, `error`, `refused`). An agent that has declared a config
+target runs only if the loader still serves its pinned artifact. Actions of one
+agent are serialised, because the replay requires a completion to match the
+oldest open intent and chains an author's own actions. The message bus is typed
+(declared sender, receiver and a strict flat-JSON schema) and every send is an
+action. Explicit non-claims: this runs inside one process, so a compromised
+agent that shares that process can bypass it; there is no filesystem, network or
+syscall isolation (OS-level sandboxing is future work); and a typed message
+narrows what a reader can say but cannot stop a compromised reader sending a
+well-formed lie.
+
+**ADR-18. Verifier-supplied policy for what the log cannot enforce (DECIDED,
+Phase 2).**
+Why: an audit pointed out that a proposer chooses the tier, and T0 needs no
+votes and no delay, and that delays rest on entry times which are claims.
+Decision: `governance.Options` gains `MinTier` (a tier floor per target;
+`tier_too_low`) and `Now` with `MaxSkew` (entries dated later than the
+verifier's clock allows are rejected; `future_entry`). Both are inputs to the
+verifier, not entries, so every verifier must be given the same policy; the CLI
+exposes the clock as `-use-clock`. Cost: agreement on policy is out of band.

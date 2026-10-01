@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/cockyapple/cairn/governance"
 	"github.com/cockyapple/cairn/ledger"
@@ -30,6 +31,7 @@ func run(args []string, errw io.Writer) int {
 	out := fs.String("out", "", "HTML file to write (required)")
 	cpPath := fs.String("checkpoint", "", "signed checkpoint file to verify and show")
 	constHex := fs.String("constitution", "", "expected constitution hash, 64 hex characters")
+	useClock := fs.Bool("use-clock", false, "reject entries dated more than 5 minutes after this machine's clock (makes delays checkable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -43,6 +45,9 @@ func run(args []string, errw io.Writer) int {
 		return 2
 	}
 	var opt governance.Options
+	if *useClock {
+		opt.Now, opt.MaxSkew = uint64(time.Now().Unix()), 300
+	}
 	if *constHex != "" {
 		b, err := hex.DecodeString(*constHex)
 		if err != nil || len(b) != 32 {

@@ -10,7 +10,7 @@ Changes take effect only after delayed, human-auditable review. No blockchain fr
 <a href="https://github.com/cockyapple/cairn/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cockyapple/cairn/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="Go 1.24" src="https://img.shields.io/badge/go-1.24-00ADD8">
 <img alt="License Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue">
-<img alt="Status: Phase 1 in progress" src="https://img.shields.io/badge/status-phase%201%20in%20progress-orange-orange">
+<img alt="Status: Phase 2 in progress" src="https://img.shields.io/badge/status-phase%202%20in%20progress-orange-orange">
 </p>
 
 ---
@@ -112,7 +112,7 @@ itself. The full list is in the [constitution](docs/CONSTITUTION.md).
 
 ## Status
 
-**Phase 0 (specification and verifier core) is done. Phase 1 is partly built.** What
+**Phase 0 (specification and verifier core) is done. Phases 1 and 2 are partly built.** What
 exists today, and what does not, so nothing is oversold:
 
 | | Status |
@@ -124,10 +124,14 @@ exists today, and what does not, so nothing is oversold:
 | Governance replay: who may write what, tier approvals and delays, validator rotation, freeze and lift, ACTION intent trail | Built and tested (invariants I1 and I3 enforced; see SPEC section 10.5 for the rest, which is not) |
 | Verifier CLI (`cmd/cairn-verify`) and fuzz targets for every decoder | Built; fuzzing is manual, not yet in CI |
 | Language-neutral vectors for proofs and governance | **Not yet**: Go tests only, so a second implementation has nothing to check against |
-| Gatekeeper, provider adapters, message bus, sandboxes | **Not yet**: designed in [docs](docs/INJECTION-DEFENSE.md), built in Phase 2 |
+| Review workflow: proposal, council vote, activation, loader that serves only activated content (`review`, `loader`) | Built and tested, including a rejected change that the loader refuses |
+| Reviewers that are LLMs, humans or scripts, interchangeable (`review.Council`) | Built and tested against fake models; no live model has voted yet |
+| Provider adapters: OpenAI-compatible, Anthropic, Google, Ollama (`provider`) | Built; tested against local fakes only, **not against the live services** |
+| Gatekeeper: capability policy, intent logged before the action, refusals logged, only activated config runs, typed message bus (`gatekeeper`) | Built and tested. It is a policy layer in one process, **not an OS sandbox**: a compromised agent process is not contained |
+| Static review page and eval result hashing (`cmd/cairn-review`, `eval`) | Built. The log records which eval result reviewers saw, not that the eval ran honestly |
+| Per-agent OS sandbox | **Not yet** |
 | Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |
-| Review web UI and eval runner | **Not yet**: Phase 2 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |
 
 A chain that passes the verifier is **authentic and untampered**. With the governance

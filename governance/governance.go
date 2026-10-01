@@ -24,6 +24,18 @@ func (m MapBlobs) Get(h ledger.Hash) ([]byte, bool) { b, ok := m[h]; return b, o
 type Options struct {
 	// ConstitutionHash, when set, must equal the hash recorded in GENESIS.
 	ConstitutionHash *ledger.Hash
+	// MinTier, when set, is a tier floor per target that the verifier insists
+	// on. The log itself only fixes floors for the reserved cairn/ targets, so a
+	// proposer could otherwise file any other change at T0, which needs no
+	// votes and no delay. The policy is not recorded in the log: every verifier
+	// has to be given the same one.
+	MinTier func(target string) ledger.Tier
+	// Now, when non-zero, is a clock the verifier trusts (unix seconds). An entry
+	// stamped more than MaxSkew seconds after it is rejected, so a validator
+	// cannot date an entry into the future to satisfy a delay that has not
+	// really elapsed.
+	Now     uint64
+	MaxSkew uint64
 }
 
 type Activation struct {
@@ -153,6 +165,7 @@ type agentRec struct {
 }
 
 type replayer struct {
+	opt       Options
 	st        State
 	blobs     Blobs
 	proposals map[ledger.Hash]*proposalRec
@@ -169,6 +182,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		return nil, err
 	}
 	r := &replayer{
+		opt:       opt,
 		blobs:     blobs,
 		proposals: map[ledger.Hash]*proposalRec{},
 		votes:     map[ledger.Hash]voteRec{},
@@ -178,6 +192,9 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		e := &entries[i]
 		if i > 0 && e.Time < entries[i-1].Time {
 			return nil, fail(e.Height, CodeTimeRegression, "entry time is earlier than the previous entry")
+		}
+		if opt.Now != 0 && e.Time > opt.Now+opt.MaxSkew {
+			return nil, fail(e.Height, CodeFutureEntry, "entry time is later than the verifier's clock allows")
 		}
 		var err error
 		if i == 0 {
@@ -285,6 +302,9 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 	p, err := ledger.DecodeProposal(b)
 	if err != nil {
 		return decodeFail(e.Height, err)
+	}
+	if r.opt.MinTier != nil && p.Tier < r.opt.MinTier(p.Target) {
+		return fail(e.Height, CodeTierTooLow, "this target needs a higher tier under the verifier's policy")
 	}
 	switch p.Target {
 	case targetValidators, targetConstitution, targetGatekeeper:

@@ -216,6 +216,10 @@ the entry hash of the same author's previous ACTION, or zero for its first
 (`bad_action_chain`). The replay reports every intent still open; an old open
 intent is a signal (crash, refusal or concealment), not itself a violation.
 
+Convention, not a rule the replay checks: a gatekeeper writes the result blob so
+that its first line is `ok`, `error` or `refused`, and a refusal is an intent
+plus a completion whose blob is `refused`, a code and a detail (ADR-17).
+
 ### 10.5 What is not enforced, and why
 
 - **I4 (loosening is slower than tightening).** Whether a change loosens a
@@ -231,7 +235,15 @@ intent is a signal (crash, refusal or concealment), not itself a violation.
 - **Time.** Delays are measured on entry `time` values, which are claims. They
   are bounded by monotonicity and, in Stage A, by the sequencer refusing
   entries far from its own clock; a consumer that loads a change must compare
-  `effective_after` with a clock it trusts.
+  `effective_after` with a clock it trusts. A verifier that has such a clock can pass it as `Now` with a `MaxSkew`;
+  an entry stamped later is rejected (`future_entry`), which stops a validator
+  dating a VALIDATORS entry ahead to skip its delay. Without `Now` the delay
+  rests on entry times alone.
+- **Tier floors for other targets.** The log fixes floors only for the reserved
+  `cairn/` targets. For anything else a proposer chooses the tier, and T0 needs
+  no votes and no delay. A verifier can pass a `MinTier` policy; a proposal below
+  its floor is rejected (`tier_too_low`). The policy is not recorded in the log,
+  so every verifier has to be given the same one.
 - **I7** is enforced only as a record: the log shows an intent before the
   completion. Whether a gatekeeper really waited for the log is Phase 2.
 
@@ -246,4 +258,4 @@ keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
 `already_activated`, `bad_vote_reference`, `blocked_by_vote`,
 `insufficient_approvals`, `delay_too_short`, `delay_not_elapsed`, `frozen`,
 `bad_freeze_state`, `bad_validators_change`, `bad_action_chain`,
-`bad_action_completion`.
+`bad_action_completion`, `tier_too_low`, `future_entry`.

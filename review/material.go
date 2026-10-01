@@ -16,6 +16,10 @@ type Material struct {
 	Artifact    []byte
 	Rationale   []byte
 	Eval        *eval.Result // nil when the proposal carries no eval
+	// EvalProblem is set when the attached eval result was not computed for this
+	// artifact or does not start from the artifact now in force. Its scores then
+	// say nothing about this change and must not be presented as if they did.
+	EvalProblem string
 }
 
 func blob(blobs governance.Blobs, h ledger.Hash, what string) ([]byte, error) {
@@ -74,6 +78,14 @@ func Gather(st *governance.State, blobs governance.Blobs, proposal ledger.Hash) 
 			return nil, err
 		}
 		m.HasPrevious = true
+	}
+	if m.Eval != nil {
+		switch {
+		case m.Eval.CandidateHash != info.Proposal.DiffHash:
+			m.EvalProblem = "the eval result was computed for a different artifact than this proposal carries"
+		case m.HasPrevious && m.Eval.BaselineHash != ledger.BlobHash(m.Previous):
+			m.EvalProblem = "the eval result compares against a different baseline than the artifact now in force"
+		}
 	}
 	return m, nil
 }

@@ -29,6 +29,8 @@ const (
 	CodeBadValidatorsChange   = "bad_validators_change"
 	CodeBadActionChain        = "bad_action_chain"
 	CodeBadActionCompletion   = "bad_action_completion"
+	CodeTierTooLow            = "tier_too_low"
+	CodeFutureEntry           = "future_entry"
 )
 
 // AllCodes lists every governance code; a test requires SPEC section 10 to match.
@@ -38,6 +40,7 @@ var AllCodes = []string{
 	CodeAlreadyActivated, CodeBadVoteReference, CodeBlockedByVote, CodeInsufficientApprovals,
 	CodeDelayTooShort, CodeDelayNotElapsed, CodeFrozen, CodeBadFreezeState,
 	CodeBadValidatorsChange, CodeBadActionChain, CodeBadActionCompletion,
+	CodeTierTooLow, CodeFutureEntry,
 }
 
 // Error is a governance violation at a specific entry.
