@@ -244,6 +244,9 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
   no votes and no delay. A verifier can pass a `MinTier` policy; a proposal below
   its floor is rejected (`tier_too_low`). The policy is not recorded in the log,
   so every verifier has to be given the same one.
+- **Emergency key revocation.** There is no `REVOKE` entry. A stolen key stays valid until a
+  change that removes it clears its tier delay; a freeze does not stop it signing. Planned
+  (ADR-20), not built.
 - **I7** is enforced only as a record: the log shows an intent before the
   completion. Whether a gatekeeper really waited for the log is Phase 2.
 

@@ -38,6 +38,9 @@ are listed by capability, not name.
 | Attacker freezes the system to block a fix | A5 | I3: freeze never blocks rollback | Enforced in replay (Phase 1) |
 | Up to f validators equivocate | A5 | 3f+1 BFT, quorum n - (n-1)/3 | Quorum math Phase 0; protocol Phase 3 |
 | Key theft | A1 | Role separation, rotation via VALIDATORS epochs, hardware keys advised | Phase 1 |
+| Stolen key keeps writing until a tiered change clears its delay | A1, A3 | Emergency `REVOKE` entry, no delay (ADR-20) | Planned, not built; today only VALIDATORS rotation exists |
+| Permitted write built from poisoned input (confused deputy) | A2, A3 | Provenance marks on inputs; refuse or escalate consequential writes that trace to untrusted reads (ADR-20) | Planned, not built (Phase 3). Does not stop a well-formed lie |
+| Compromised agent floods the log, exhausting storage or verifier memory | A3 | Per-author rate and size caps at the sequencer; replay that does not hold every blob in memory (ADR-20) | Planned, not built (Phase 1). Per-entry bounds exist |
 | Malicious dependency | A7 | Standard library only in the verifier; module and image pinned; reproducible build | Phase 0 (no deps); reproducible build Phase 1 |
 | One compromised agent pivots through others | A3 | Per-agent keys, sandboxes, typed message bus, narrowing-only delegation (I11) | Phase 1-2 |
 | Many agents stay under individual caps | A3 | Fleet budget, spawn-rate cap, fleet-wide anomaly freeze | Phase 3 |

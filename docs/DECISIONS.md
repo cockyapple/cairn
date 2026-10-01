@@ -180,3 +180,32 @@ action of that agent; the completion is now kept and retried before the agent
 does anything else, and nothing runs until it is written. Explicit non-claim: the
 log does not recompute eval scores, so they remain the proposer's claim, and
 there is still no eval runner service, only the library.
+
+**ADR-20. Plan after the prior-art survey (PROPOSED, nothing here is built).**
+Why: a survey of related open-source projects (read from their READMEs and the C2SP
+specs, not run) and a Gemini comparison, checked against this repo, found three
+gaps the threat model did not cover and several worthwhile borrowings.
+Decisions proposed:
+(1) *Checkpoints.* Keep the native binary checkpoint as the signed object. Add a C2SP
+signed-note rendering of the same tree head (origin, size, root) so existing witnesses and
+tiles tooling can cosign and serve it. That note carries no epoch or head, so a witness
+attests the Merkle root only, which still commits to every entry. Replacing the format
+was rejected: it would rewrite SPEC section 6, the vectors and the quorum rules for no
+gain in the governance layer. Decide the exact mapping before the log server is built.
+(2) *`REVOKE`.* A new entry kind, no delay, signed by a security reviewer or a validator
+quorum, naming one key. The governance replay stops accepting that key from the next
+entry. It must be limited to revoking, never granting, so it cannot be used to seize
+roles. A freeze must not block it (I3 spirit).
+(3) *Log growth.* Rate and size caps per author at the sequencer, and a replay that
+streams blobs. Admission limits are policy, not part of the wire format, so verifiers
+are unaffected.
+(4) *Provenance.* Taint marks carried by the gatekeeper onto call parameters, with a
+consequential write refused or escalated when it traces to an untrusted read. Cost: the
+gatekeeper needs a data-flow model, and it cannot detect a lie that is well-formed and
+sourced from a trusted channel.
+(5) *Smaller items:* `human_review` pause on an open intent, council resampling, hash-only
+ACTION payloads, audit mode, a blast-radius trace tool, credential injection, tile
+serving and the C2SP witness protocol.
+Not adopted: a BFT framework or policy runtime in the core, and post-quantum signatures
+in the verifier. Cost of the plan: each item that touches the entry kinds changes SPEC
+and the vectors, so they are batched into one version bump rather than trickled in.

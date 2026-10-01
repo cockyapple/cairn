@@ -4,6 +4,29 @@ Thirty weeks, assuming one builder working part-time with AI coding help. Phases
 end with something that works standing alone. Phases 4 and 5 are research-grade and can
 slip without breaking what came before.
 
+## Strategy
+
+Cairn is a small, auditable core: a tamper-evident log, a governance state machine over it,
+and a gatekeeper that treats the model as untrusted. It is not a general agent platform.
+The plan follows from that, and was sharpened by a survey of related open-source work
+(transparency-log infrastructure such as Tessera, Sigsum and the C2SP specs; agent receipt and
+authorization tools such as VAOL, agent-custody, AgentLock and Openfirma; LLM councils).
+The survey was read from those projects' READMEs and specs, not from running them, so
+treat the comparisons as indicative.
+
+1. **Own the governance layer, borrow the log conventions.** Nothing surveyed combines
+   tiered, time-locked governance, an intent-then-completion action trail, and a council
+   of reviewers that can be models, people or scripts. The log layer is a solved problem
+   with shared formats. Interoperate there; do not reinvent it a second time.
+2. **Close the gaps that attackers would use first.** The survey exposed three the threat
+   model did not cover: no way to revoke a stolen key quickly, no defence against a
+   permitted write built from poisoned reads, and no limit on log growth.
+3. **Keep the trusted core small.** Every addition below is judged against the
+   standard-library-only rule and the verifier line budget. Anything that cannot meet them
+   lives outside the core as an optional adapter, or is not done.
+4. **Say what is built.** Items under "Added after the survey" are plans. They are
+   not described as built anywhere until they exist and are tested.
+
 ## Success measures (proposed, to be tuned after Phase 1)
 
 | Measure | Target |
@@ -30,6 +53,18 @@ delegation and agent suspension. Fuzzing of every decoder.
 *Done when* the tamper suite passes, the verifier is under budget and a witness catches a
 forced split view.
 
+*Added after the survey (planned, not built):*
+- **Checkpoint format decision, before the log server is written** (ADR-20). Keep the native
+  binary checkpoint as the signed object and add a C2SP signed-note rendering of the same
+  tree head for outside witnesses, rather than replacing the format. Decide, then build.
+- **`REVOKE` entry.** An emergency, no-delay revocation of one key, signed by a security
+  reviewer or a validator quorum, that stops that key being accepted from the next entry on.
+  Today a stolen key stays valid until a tiered change clears its delay.
+- **Sequencer admission limits.** Per-author rate and size caps at the log server, so a
+  compromised agent cannot flood the log with intents. Replay should not need every blob in
+  memory at once.
+- **Language-neutral vectors for proofs and governance**, which were already owed.
+
 ### Phase 2 (weeks 7 to 10): Review workflow and gatekeeper. MOSTLY BUILT
 Proposals, votes, tiers, timelocks, freeze, a review web view showing diffs and eval
 deltas, and an eval runner that records its result hash on the ledger. The gatekeeper
@@ -37,6 +72,15 @@ with provider adapters (OpenAI-compatible, Anthropic, Google, Ollama), per-agent
 and typed message bus.
 *Done when* a real change goes from proposal to activation with quorum and a rejected one
 provably never loads.
+
+*Added after the survey (planned, not built):*
+- **`human_review` pause.** An action that policy marks for review leaves its intent open until
+  a signed approval entry is logged, then runs. Fits the existing intent and completion pair.
+- **Council resampling.** If reviewer confidence is low or reviewers disagree narrowly, ask again
+  before recording a vote, and log that it happened.
+- **Hash-only mode for ACTION payloads.** The log records the digest and the blob stays
+  private. Governance entries keep requiring their blobs, because replay reads them.
+- **An eval runner service**, still owed from the original scope.
 
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
 policy layer, message bus, review page and the end-to-end test are built. **Not built:**
@@ -51,6 +95,21 @@ anomaly freeze.
 *Done when* the agent refuses a tampered config and a fleet stays inside its budget under
 adversarial load.
 
+*Added after the survey (planned, not built):*
+- **Provenance tracking in the gatekeeper.** Mark each input as trusted or untrusted, carry that
+  mark onto the parameters of a later call, and refuse or escalate a consequential write whose
+  parameters trace back to an untrusted read. This addresses a permitted action built from
+  poisoned input, which the policy layer alone cannot see. It will not stop a well-formed lie,
+  and the docs must say so.
+- **Audit mode.** Classify actions as read, write or destructive and log what would have been
+  refused before enforcing, so thresholds are set from data.
+- **Blast-radius trace.** A verifier-side tool that, given one entry or memory write, lists the
+  later entries that cite it. Memory writes should cite the intent that produced them.
+- **Credential injection at the execution boundary.** The gatekeeper holds secrets and attaches
+  them to a call; the model never sees them.
+- **Tile-served log and the C2SP witness protocol**, once the log server exists, so existing
+  witnesses and tooling can work with it without a custom service.
+
 ### Phase 4 (weeks 15 to 22): Decentralize (research)
 Custom BFT with 3f+1 validators, specified in TLA+ and tested by deterministic simulation
 with injected faults.
@@ -59,6 +118,14 @@ with injected faults.
 Hardware attestation, the prompt-injection corpus and benchmark, per-model scoring and
 trust classes, multi-agent adversarial tests, third-party review.
 
+*Added after the survey (planned, not built):* an optional external-policy adapter (Cedar or
+OPA) behind the gatekeeper, outside the core, for operators who already use one.
+
 ## Not planned
 
 A token, a general smart-contract VM, or claims that any model is injection-proof.
+
+Also ruled out after the survey: embedding a BFT framework such as CometBFT or a policy
+runtime in the core (it would break the dependency and size rules), and post-quantum
+signatures in the verifier until the standard library supports them. Revisit that last one
+when it does.
