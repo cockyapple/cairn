@@ -1,6 +1,7 @@
 package ledger
 
 import (
+	"bytes"
 	"crypto/ed25519"
 
 	"github.com/cockyapple/cairn/wire"
@@ -75,7 +76,11 @@ func (s *SignedCheckpoint) Encode() []byte {
 func DecodeSignedCheckpoint(b []byte) (SignedCheckpoint, error) {
 	var s SignedCheckpoint
 	r := wire.NewReader(b)
-	if r.U8() != Version {
+	v := r.U8()
+	if r.Err() != nil {
+		return s, fail(CodeBadCheckpointLen, r.Err().Error())
+	}
+	if v != Version {
 		return s, fail(CodeBadVersion, "unsupported checkpoint version")
 	}
 	s.Epoch = r.U64()
@@ -97,10 +102,16 @@ func DecodeSignedCheckpoint(b []byte) (SignedCheckpoint, error) {
 
 // VerifyCheckpoint checks sc against the log prefix it claims to cover and
 // the trust configuration in force. The caller must already have verified the
-// chain (see VerifyLog). Signatures by keys outside the trust config are
-// ignored, never counted; a bad signature by a member, or any repeated
-// signer, rejects the whole checkpoint.
+// chain (see VerifyLog). A checkpoint is canonical: signatures are in strictly
+// ascending public-key order and every signer is admitted, so one valid
+// checkpoint has exactly one encoding (ADR-12).
 func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig) error {
+	if sc == nil {
+		return fail(CodeBadCheckpointLen, "no checkpoint supplied")
+	}
+	if trust == nil {
+		return fail(CodeBadTrustConfig, "no trust configuration supplied")
+	}
 	if err := trust.validate(); err != nil {
 		return err
 	}
@@ -117,18 +128,21 @@ func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig)
 		return fail(CodeEpochMismatch, "checkpoint epoch is not the epoch in force")
 	}
 
-	seen := map[[32]byte]bool{}
 	validators, witnesses := 0, 0
 	in := checkpointSigInput(&sc.Checkpoint)
-	for _, cs := range sc.Sigs {
+	for i, cs := range sc.Sigs {
+		if i > 0 {
+			switch c := bytes.Compare(sc.Sigs[i-1].Public[:], cs.Public[:]); {
+			case c == 0:
+				return fail(CodeDuplicateSigner, "a key signed more than once")
+			case c > 0:
+				return fail(CodeUnsortedSigners, "signatures must be in ascending public-key order")
+			}
+		}
 		role, ok := trust.roleOf(cs.Public)
 		if !ok {
-			continue
+			return fail(CodeUnknownSigner, "signature by a key outside the trust configuration")
 		}
-		if seen[cs.Public] {
-			return fail(CodeDuplicateSigner, "an admitted key signed more than once")
-		}
-		seen[cs.Public] = true
 		if !ed25519.Verify(ed25519.PublicKey(cs.Public[:]), in, cs.Signature[:]) {
 			return fail(CodeBadSignature, "invalid signature by an admitted key")
 		}

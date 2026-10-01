@@ -1,7 +1,8 @@
 # Cairn ledger specification, version 1
 
-Status: Phase 0 draft. The wire format in this file is frozen once Phase 1
-starts; any change after that is a new version. Conformance is defined by
+Status: Phase 1 draft. Phase 1 made three deliberate format changes before freezing
+(canonical checkpoints, the FREEZE lift scope, and the ACTION intent/completion
+rule); after those, any change is a new version. Conformance is defined by
 `testdata/vectors-v1.json`, not by this prose. Where they disagree, the vectors
 win and this file has a bug.
 
@@ -16,8 +17,13 @@ Keywords MUST, SHOULD and MAY are as in RFC 2119.
 - A decoder MUST reject trailing bytes, short input, invalid UTF-8, and any
   length or count above its bound (`bytes` 16 MiB; key list 1024; vote list 256;
   checkpoint signatures 1024). Bounds are checked **before** allocating.
-- Every signature and hash uses a domain prefix (ends in `\x00`) so a signature
-  made for one purpose can never be replayed for another.
+- Every signature, and every hash that is signed or chained (entry hash, Merkle
+  nodes, checkpoint), uses a domain prefix (ends in `\x00`) so a signature made for
+  one purpose can never be replayed for another. Blob addresses are plain SHA-256
+  of the blob, on purpose: `sha256sum` reproduces them.
+- No public key may be of small order (order dividing 8): `ed25519.Verify` accepts
+  such keys and anyone could then forge for them. An entry whose author is one
+  fails `bad_signature`; a TrustConfig that admits one is `bad_trust_config`.
 
 ## 2. Entry (fixed 178 bytes)
 
@@ -53,8 +59,9 @@ parsing ambiguity. It is advisory: order comes from height.
 | 3 | ACTIVATE | `[32] proposal_entry_hash, u32 n, n x [32] vote_entry_hash, u64 effective_after` |
 | 4 | ACTION | `string action_type, [32] args_hash, [32] result_hash, [32] prev_action_hash` |
 | 5 | VALIDATORS | `TrustConfig` (a new epoch) |
-| 6 | FREEZE | `u8 scope, [32] reason_hash` (scope 1 = activations) |
+| 6 | FREEZE | `u8 scope, [32] reason_hash` (scope 1 = freeze activations, scope 2 = lift the freeze) |
 
+GENESIS `spec_version` MUST be 1 and its TrustConfig epoch MUST be 0 (`bad_payload`).
 `TrustConfig` = `u64 epoch, u32 n, n x (u8 role, [32] public_key), u32 witness_threshold`.
 Roles: 1 validator, 2 witness, 3 reviewer, 4 security reviewer, 5 proposer, 6 agent.
 A key holds exactly one role. At least one validator. `witness_threshold` MUST NOT
@@ -83,17 +90,15 @@ then n x (`[32] public_key, [64] signature`).
 
 A checkpoint is valid for a chain and a TrustConfig iff: size equals the entry
 count and is non-zero; root equals the Merkle root; head equals the last entry
-hash; epoch equals the TrustConfig epoch; no admitted signer appears twice (a repeated key outside the config is ignored like any other); every
-signature by an **admitted** key verifies (signatures by keys outside the
-config are ignored and never counted); validator signatures reach
+hash; epoch equals the TrustConfig epoch; signatures are in strictly ascending order of public key (a repeat is `duplicate_signer`,
+a misordering is `unsorted_signers`); every signer is **admitted** (a stranger is
+`unknown_signer`); every signature verifies; validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.
 
-Consequence: a checkpoint's bytes are **not canonical**. Replacing the public key
-of one signature with a stranger's key turns that signature into an ignored one, and
-the checkpoint still verifies if quorum holds without it. Verifiers must therefore
-identify a checkpoint by its body (epoch, size, root, head), never by a hash of its
-wire bytes. Whether Phase 1 should require sorted, admitted-only signatures is open
-(see DECISIONS.md, ADR-12).
+Consequence: a checkpoint is **canonical**. Because signatures are sorted and
+only admitted keys may sign, one valid checkpoint has exactly one encoding, so
+hashing the encoding is safe (ADR-12). Signers must therefore sign only with
+admitted keys, and a coordinator must sort before publishing.
 
 Quorum `n - (n-1)/3` means any two quorums share an honest validator when at
 most `(n-1)/3` are faulty. For n = 1, 4, 7 the quorum is 1, 3, 5.
@@ -105,7 +110,7 @@ Stable strings, asserted exactly by the vectors: `bad_length`, `bad_version`,
 `bad_prev_hash`, `bad_signature`, `bad_payload`, `size_mismatch`,
 `root_mismatch`, `head_mismatch`, `epoch_mismatch`, `below_quorum`,
 `below_witness_threshold`, `duplicate_signer`, `bad_trust_config`,
-`bad_checkpoint`.
+`bad_checkpoint`, `unknown_signer`, `unsorted_signers`.
 
 ## 8. What Phase 0 does and does not check
 

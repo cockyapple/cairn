@@ -68,9 +68,15 @@ func DecodeTrustConfig(b []byte) (TrustConfig, error) {
 }
 
 func (t *TrustConfig) validate() error {
+	if len(t.Keys) > maxKeys {
+		return fail(CodeBadTrustConfig, "too many keys")
+	}
 	seen := map[[32]byte]bool{}
 	var validators, witnesses uint32
 	for _, k := range t.Keys {
+		if smallOrder(k.Public) {
+			return fail(CodeBadTrustConfig, "small-order public key")
+		}
 		if !k.Role.Valid() {
 			return fail(CodeBadTrustConfig, "unknown role")
 		}

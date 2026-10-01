@@ -24,6 +24,8 @@ const (
 	CodeDuplicateSigner  = "duplicate_signer"
 	CodeBadTrustConfig   = "bad_trust_config"
 	CodeBadCheckpointLen = "bad_checkpoint"
+	CodeUnknownSigner    = "unknown_signer"
+	CodeUnsortedSigners  = "unsorted_signers"
 )
 
 type Error struct {

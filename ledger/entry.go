@@ -119,6 +119,9 @@ func (e *Entry) Sign(priv ed25519.PrivateKey) {
 }
 
 func (e *Entry) VerifySignature() bool {
+	if smallOrder(e.Author) {
+		return false
+	}
 	return ed25519.Verify(ed25519.PublicKey(e.Author[:]), sigInput(e), e.Signature[:])
 }
 

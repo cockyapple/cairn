@@ -30,6 +30,12 @@ func DecodeGenesis(b []byte) (Genesis, error) {
 	if err := r.Done(); err != nil {
 		return g, fail(CodeBadPayload, err.Error())
 	}
+	if g.SpecVersion != SpecVersion {
+		return g, fail(CodeBadPayload, "unsupported spec version")
+	}
+	if g.Trust.Epoch != 0 {
+		return g, fail(CodeBadPayload, "genesis trust configuration must be epoch 0")
+	}
 	return g, g.Trust.validate()
 }
 
@@ -182,7 +188,10 @@ func DecodeAction(b []byte) (Action, error) {
 
 type FreezeScope uint8
 
-const FreezeActivations FreezeScope = 1
+const (
+	FreezeActivations FreezeScope = 1
+	FreezeLift        FreezeScope = 2 // lifts an activation freeze
+)
 
 type Freeze struct {
 	Scope      FreezeScope
@@ -204,7 +213,7 @@ func DecodeFreeze(b []byte) (Freeze, error) {
 	if err := r.Done(); err != nil {
 		return f, fail(CodeBadPayload, err.Error())
 	}
-	if f.Scope != FreezeActivations {
+	if f.Scope != FreezeActivations && f.Scope != FreezeLift {
 		return f, fail(CodeBadPayload, "unknown freeze scope")
 	}
 	return f, nil

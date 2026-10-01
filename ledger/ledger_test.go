@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 )
 
@@ -129,7 +130,7 @@ func TestValidatorQuorum(t *testing.T) {
 
 func TestPayloadRoundTrips(t *testing.T) {
 	h := BlobHash([]byte("x"))
-	tc := TrustConfig{Epoch: 2, WitnessThreshold: 1, Keys: []Key{
+	tc := TrustConfig{Epoch: 0, WitnessThreshold: 1, Keys: []Key{
 		{RoleValidator, pub(testKey("v"))}, {RoleWitness, pub(testKey("w"))}}}
 	g := Genesis{SpecVersion: SpecVersion, ConstitutionHash: h, Trust: tc}
 	if d, err := DecodeGenesis(g.Encode()); err != nil || !bytes.Equal(d.Encode(), g.Encode()) {
@@ -198,5 +199,85 @@ func TestEmptyChainIsRejected(t *testing.T) {
 	}
 	if got := ErrCode(VerifyChain([]Entry{})); got != CodeBadGenesis {
 		t.Fatalf("want %s, got %q", CodeBadGenesis, got)
+	}
+}
+
+func TestDegenerateInputsGetStableCodes(t *testing.T) {
+	for _, b := range [][]byte{nil, {}} {
+		if _, err := DecodeSignedCheckpoint(b); ErrCode(err) != CodeBadCheckpointLen {
+			t.Fatalf("empty checkpoint: got %v, want %s", err, CodeBadCheckpointLen)
+		}
+	}
+	if err := VerifyCheckpoint(nil, nil, &TrustConfig{}); ErrCode(err) != CodeBadCheckpointLen {
+		t.Fatalf("nil checkpoint: got %v", err)
+	}
+	if err := VerifyCheckpoint(&SignedCheckpoint{}, nil, nil); ErrCode(err) != CodeBadTrustConfig {
+		t.Fatalf("nil trust: got %v", err)
+	}
+}
+
+func TestSmallOrderKeysAreRejected(t *testing.T) {
+	// The eight torsion points by y, in canonical and sign-flipped encodings,
+	// plus the non-canonical spellings of y = 0 and y = 1 (y + p).
+	enc := func(hexs string) (k [32]byte) {
+		b, err := hex.DecodeString(hexs)
+		if err != nil || len(b) != 32 {
+			t.Fatalf("bad test constant %q", hexs)
+		}
+		copy(k[:], b)
+		return
+	}
+	var keys [][32]byte
+	for _, s := range []string{
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		"0100000000000000000000000000000000000000000000000000000000000000",
+		"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+		"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+		"edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	} {
+		k := enc(s)
+		keys = append(keys, k)
+		k[31] |= 0x80
+		keys = append(keys, k)
+	}
+	for _, k := range keys {
+		if !smallOrder(k) {
+			t.Fatalf("small-order key %x not detected", k)
+		}
+	}
+	sig := make([]byte, 64)
+	sig[0] = 1
+	// The identity key forges any message.
+	id := enc("0100000000000000000000000000000000000000000000000000000000000000")
+	e := Entry{Kind: KindGenesis, Author: id}
+	copy(e.Signature[:], sig)
+	if !ed25519.Verify(id[:], sigInput(&e), sig) {
+		t.Fatal("test premise: identity key should verify under ed25519.Verify")
+	}
+	if e.VerifySignature() {
+		t.Fatal("entry authored by the identity key must be rejected")
+	}
+	tc := TrustConfig{Keys: []Key{{RoleValidator, id}}}
+	if ErrCode(tc.validate()) != CodeBadTrustConfig {
+		t.Fatal("trust config must not admit a small-order key")
+	}
+	// Ordinary keys are untouched.
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
+		if smallOrder(pub(testKey(n))) {
+			t.Fatalf("honest key %s flagged", n)
+		}
+	}
+}
+
+func TestGenesisRejectsBadVersionAndEpoch(t *testing.T) {
+	tc := TrustConfig{Keys: []Key{{RoleValidator, pub(testKey("a"))}}}
+	if _, err := DecodeGenesis((&Genesis{SpecVersion: 2, Trust: tc}).Encode()); ErrCode(err) != CodeBadPayload {
+		t.Fatalf("spec_version 2: %v", err)
+	}
+	tc.Epoch = 5
+	if _, err := DecodeGenesis((&Genesis{SpecVersion: SpecVersion, Trust: tc}).Encode()); ErrCode(err) != CodeBadPayload {
+		t.Fatalf("epoch 5: %v", err)
 	}
 }

@@ -3,11 +3,13 @@
 package vectorgen
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/cockyapple/cairn/ledger"
 )
@@ -276,6 +278,7 @@ func (b *builder) signed(c ledger.Checkpoint, signers ...string) ledger.SignedCh
 	for _, n := range signers {
 		sc.Cosign(b.keys[n])
 	}
+	sort.SliceStable(sc.Sigs, func(i, j int) bool { return bytes.Compare(sc.Sigs[i].Public[:], sc.Sigs[j].Public[:]) < 0 })
 	return sc
 }
 
@@ -292,11 +295,12 @@ func (b *builder) checkpointCases(chain []ledger.Entry, trust ledger.TrustConfig
 	add("quorum_3_of_4_full_log", "", chain, b.signed(full, quorum...))
 	add("all_4_validators_prefix_of_4_entries", "", chain[:4],
 		b.signed(ledger.NewCheckpoint(0, chain[:4]), "v1", "v2", "v3", "v4", "w1", "w2"))
-	add("ignores_signature_from_unadmitted_key", "", chain,
+	add("rejects_signature_from_unadmitted_key", ledger.CodeUnknownSigner, chain,
 		b.signed(full, "v1", "v2", "v3", "w1", "w2", "outsider"))
 
-	add("ignores_repeated_unadmitted_signer", "", chain,
-		b.signed(full, "v1", "v2", "v3", "w1", "w2", "outsider", "outsider"))
+	unsorted := b.signed(full, quorum...)
+	unsorted.Sigs[0], unsorted.Sigs[1] = unsorted.Sigs[1], unsorted.Sigs[0]
+	add("signatures_not_in_key_order", ledger.CodeUnsortedSigners, chain, unsorted)
 
 	add("below_validator_quorum", ledger.CodeBelowQuorum, chain, b.signed(full, "v1", "v2", "w1", "w2"))
 	add("below_witness_threshold", ledger.CodeBelowWitnesses, chain, b.signed(full, "v1", "v2", "v3", "w1"))

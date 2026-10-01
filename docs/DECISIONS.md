@@ -60,22 +60,28 @@ validated typed records (never spliced prompts), delegate only subsets of their
 own grant, and are also bounded by fleet budgets, spawn limits and fleet-wide
 anomaly freezes. Cost: more moving parts in the gatekeeper and a bus to operate.
 
-**ADR-12. Checkpoint bytes are not canonical in Phase 0 (OPEN).**
-Why: the tamper suite showed that with surplus signatures, 1,024 of 5,288
-single-bit flips (every bit of every validator's public-key field) still verify,
-because a key outside the trust config is ignored by design. That is not a
-forgery (the quorum is still proven), but two different byte strings are the
-same valid checkpoint. Rule until decided: identify a checkpoint by its body,
-never by a hash of its encoding. Phase 1 should decide whether to require
-sorted, admitted-only signatures so the encoding becomes unique.
+**ADR-12. Checkpoints are canonical (DECIDED, Phase 1).**
+Why: the Phase 0 tamper suite showed that with surplus signatures, 1,024 of
+5,288 single-bit flips (every bit of every validator's public-key field) still
+verified, because a key outside the trust config was ignored. That was not a
+forgery, but two byte strings were the same valid checkpoint. Decision: a valid
+checkpoint has signatures in strictly ascending public-key order and no
+stranger keys (`unsorted_signers`, `unknown_signer`, `duplicate_signer`). Now
+every single-bit flip of a surplus-signer checkpoint is rejected, and the
+encoding may be hashed. Cost: a coordinator must filter and sort before
+publishing, and a witness that is not yet admitted cannot cosign into the
+published checkpoint.
 
-**ADR-13. "Log before act" vs. ACTION's result_hash (OPEN).**
-Why: found by an external audit of the blog series. Constitution I7 says the
-gatekeeper writes the ACTION entry *before* it executes, but the ACTION payload
-carries a `result_hash`, which cannot exist until the action has run. As
-specified, a single entry cannot do both. Candidate fixes: (a) write the entry
-before with a zero `result_hash`, then a second ACTION entry with the same
-`args_hash` and the real `result_hash`; (b) a separate RESULT kind. Either keeps
-I7 (intent is committed first) and adds a reconcile rule: an intent with no
-result after a timeout is itself a signal. Until decided, docs must not claim
-more than "every action is recorded".
+**ADR-13. "Log before act" vs. ACTION's result_hash (DECIDED, Phase 1).**
+Why: found by an external audit of the blog series. I7 says the gatekeeper
+writes the ACTION entry *before* it executes, but a result cannot be hashed
+before the action runs. Decision: two ACTION entries per action, no new kind.
+An **intent** has an all-zero `result_hash` and is written first. A
+**completion** has a non-zero `result_hash`, the same `action_type` and
+`args_hash`, and closes the author's oldest open intent with those values.
+Every ACTION by an agent also carries `prev_action_hash` = that agent's
+previous ACTION entry hash (zero for its first), so an agent cannot silently
+drop one of its own actions. The state machine reports open intents with their
+age: an intent with no completion is itself a signal (crash, refusal or
+concealment). Rejected alternative: a separate RESULT kind, which would add a
+wire kind and vectors for no extra guarantee.

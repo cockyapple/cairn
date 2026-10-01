@@ -7,6 +7,7 @@ package wire
 import (
 	"encoding/binary"
 	"errors"
+	"math"
 	"unicode/utf8"
 )
 
@@ -124,6 +125,9 @@ func (r *Reader) Count(max uint32) int {
 	n := r.U32()
 	if r.err != nil {
 		return 0
+	}
+	if max > math.MaxInt32 {
+		max = math.MaxInt32
 	}
 	if n > max {
 		r.err = ErrTooLarge

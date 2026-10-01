@@ -268,19 +268,17 @@ func TestTamperAppendAfterCheckpoint(t *testing.T) {
 	}
 }
 
-// With surplus signatures, some checkpoint mutations are BENIGN by design:
-// a key outside the trust config is ignored, so turning one signer's public
-// key into a stranger costs nothing while quorum still holds. Classify them.
-func TestTamperSurplusSignersBenignCases(t *testing.T) {
+// With surplus signatures the checkpoint is still canonical (ADR-12): every
+// single-bit flip anywhere in the encoding must be rejected, including flips
+// that turn a signer into a stranger or break the key ordering.
+func TestTamperSurplusSignersAllRejected(t *testing.T) {
 	k := kit(t, "all_4_validators_prefix_of_4_entries")
 	k.chain = k.chain[:4]
 	if c := verify(k.chain, k.cp, k.trust); c != "" {
 		t.Fatalf("baseline: %s", c)
 	}
 	sc, _ := ledger.DecodeSignedCheckpoint(k.cp)
-	const header = 81 + 4
 	tally := map[string]int{}
-	benign := map[string]int{}
 	total := 0
 	for by := range k.cp {
 		for bit := 0; bit < 8; bit++ {
@@ -289,34 +287,13 @@ func TestTamperSurplusSignersBenignCases(t *testing.T) {
 			c := verify(k.chain, cp, k.trust)
 			total++
 			tally[c]++
-			if c != "" {
-				continue
+			if c == "" {
+				t.Errorf("ACCEPTED single-bit flip at byte %d bit %d", by, bit)
 			}
-			if by < header {
-				t.Fatalf("a body or count mutation was accepted at byte %d", by)
-			}
-			field := "signature"
-			if (by-header)%96 < 32 {
-				field = "public_key"
-			}
-			benign[fmt.Sprintf("%s_of_signer_%d", field, (by-header)/96)]++
 		}
 	}
 	t.Logf("surplus-signer checkpoint (%d sigs, exactly-quorum would be 5): %d single-bit flips", len(sc.Sigs), total)
 	report(t, tally)
-	keys := make([]string, 0, len(benign))
-	for s := range benign {
-		keys = append(keys, s)
-	}
-	sort.Strings(keys)
-	for _, s := range keys {
-		t.Logf("   accepted (benign, quorum still met): %s x%d", s, benign[s])
-	}
-	for s := range benign {
-		if len(s) >= 9 && s[:9] == "signature" {
-			t.Errorf("a flipped signature bit by a still-admitted key was accepted: %s", s)
-		}
-	}
 }
 
 func report(t *testing.T, tally map[string]int) {
