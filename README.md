@@ -10,7 +10,7 @@ Changes take effect only after delayed, human-auditable review. No blockchain fr
 <a href="https://github.com/cockyapple/cairn/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/cockyapple/cairn/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="Go 1.24" src="https://img.shields.io/badge/go-1.24-00ADD8">
 <img alt="License Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue">
-<img alt="Status: Phase 0" src="https://img.shields.io/badge/status-phase%200%20(spec%20%2B%20verifier%20core)-orange">
+<img alt="Status: Phase 1 in progress" src="https://img.shields.io/badge/status-phase%201%20in%20progress-orange-orange">
 </p>
 
 ---
@@ -112,22 +112,29 @@ itself. The full list is in the [constitution](docs/CONSTITUTION.md).
 
 ## Status
 
-**Phase 0 is done: specification and verifier core.** What exists today, and what
-does not, so nothing is oversold:
+**Phase 0 (specification and verifier core) is done. Phase 1 is partly built.** What
+exists today, and what does not, so nothing is oversold:
 
 | | Status |
 |---|---|
 | Wire format, entry, chain, Merkle tree, checkpoints, quorum and witness checks | Built and tested |
 | Language-neutral conformance vectors, with an independent stdlib re-derivation test | Built and tested |
 | Spec, threat model, constitution, decision records | Written |
-| Role, tier and freeze **enforcement** (for example, an agent key cannot VOTE) | **Not yet**: Phase 1 state machine |
+| Merkle inclusion and consistency proofs (RFC 9162), checked against Certificate Transparency reference roots | Built and tested |
+| Governance replay: who may write what, tier approvals and delays, validator rotation, freeze and lift, ACTION intent trail | Built and tested (invariants I1 and I3 enforced; see SPEC section 10.5 for the rest, which is not) |
+| Verifier CLI (`cmd/cairn-verify`) and fuzz targets for every decoder | Built; fuzzing is manual, not yet in CI |
+| Language-neutral vectors for proofs and governance | **Not yet**: Go tests only, so a second implementation has nothing to check against |
 | Gatekeeper, provider adapters, message bus, sandboxes | **Not yet**: designed in [docs](docs/INJECTION-DEFENSE.md), built in Phase 2 |
-| Sequencer, witnesses, BFT consensus | **Not yet**: Phases 1 and 3 |
+| Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
+| BFT consensus | **Not yet**: Phase 4 |
 | Review web UI and eval runner | **Not yet**: Phase 2 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |
 
-A chain that passes today's verifier is **authentic and untampered**. It is not yet known
-to be **lawful** under the constitution. Do not treat it as more than that.
+A chain that passes the verifier is **authentic and untampered**. With the governance
+replay it is also checked for the rules in SPEC section 10, which cover roles, tiers,
+delays, freezes and ACTION ordering. It is not checked for the semantic rules (I4) or
+for anything about what a gatekeeper or agent actually did. Entry times are advisory.
+Do not treat it as more than that.
 
 ## Roadmap
 
@@ -164,6 +171,14 @@ entries, err := ledger.DecodeChain(encodedEntries) // strict decode + chain rule
 sc, err := ledger.DecodeSignedCheckpoint(checkpointBytes)
 err = ledger.VerifyLog(entries, &sc, &trust)       // chain + quorum + witnesses
 if ledger.ErrCode(err) == ledger.CodeBelowQuorum { /* ... */ }
+```
+
+Or from files, with the governance rules checked as well:
+
+```sh
+go run ./cmd/cairn-verify -entries log.bin -blobs payloads/ -checkpoint cp.bin
+# ok chain: ...   ok governance: ...   ok checkpoint: ...   (exit 0)
+# FAIL unauthorized_author: ...                              (exit 1)
 ```
 
 Errors carry stable string codes (`bad_signature`, `below_quorum`, ...) that the

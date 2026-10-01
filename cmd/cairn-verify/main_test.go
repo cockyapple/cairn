@@ -1,0 +1,184 @@
+package main
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/cockyapple/cairn/ledger"
+)
+
+func testKey(name string) ed25519.PrivateKey {
+	seed := sha256.Sum256([]byte("cairn-verify-cli-" + name))
+	return ed25519.NewKeyFromSeed(seed[:])
+}
+
+func pub(k ed25519.PrivateKey) (p [32]byte) { copy(p[:], k.Public().(ed25519.PublicKey)); return }
+
+type fixture struct {
+	dir     string
+	entries string
+	blobs   string
+	cp      string
+	constit string
+}
+
+// build writes a two-entry log: genesis by the validator, then an ACTION by
+// actor ("agent" is lawful, "val" is a validator acting outside its role).
+func build(t *testing.T, actor string) fixture {
+	t.Helper()
+	val, agent := testKey("val"), testKey("agent")
+	cons := ledger.BlobHash([]byte("constitution"))
+	trust := ledger.TrustConfig{Keys: []ledger.Key{
+		{Role: ledger.RoleValidator, Public: pub(val)},
+		{Role: ledger.RoleAgent, Public: pub(agent)},
+	}}
+	g := ledger.Genesis{SpecVersion: 1, ConstitutionHash: cons, Trust: trust}
+	a := ledger.Action{ActionType: "tool_call", ArgsHash: ledger.BlobHash([]byte("args"))}
+
+	f := fixture{dir: t.TempDir()}
+	f.blobs = filepath.Join(f.dir, "blobs")
+	if err := os.Mkdir(f.blobs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var entries []ledger.Entry
+	add := func(kind ledger.Kind, key ed25519.PrivateKey, payload []byte) {
+		e := ledger.Entry{Height: uint64(len(entries)), Kind: kind, PayloadHash: ledger.BlobHash(payload), Time: 1000 + uint64(len(entries))}
+		if len(entries) > 0 {
+			e.PrevHash = entries[len(entries)-1].Hash()
+		}
+		e.Sign(key)
+		entries = append(entries, e)
+		if err := os.WriteFile(filepath.Join(f.blobs, "p"+string(rune('a'+len(entries)))), payload, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add(ledger.KindGenesis, val, g.Encode())
+	actorKey := agent
+	if actor == "val" {
+		actorKey = val
+	}
+	add(ledger.KindAction, actorKey, a.Encode())
+
+	var raw []byte
+	for i := range entries {
+		raw = append(raw, entries[i].Encode()...)
+	}
+	f.entries = filepath.Join(f.dir, "log.bin")
+	if err := os.WriteFile(f.entries, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sc := ledger.SignedCheckpoint{Checkpoint: ledger.NewCheckpoint(0, entries)}
+	sc.Cosign(val)
+	f.cp = filepath.Join(f.dir, "cp.bin")
+	if err := os.WriteFile(f.cp, sc.Encode(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f.constit = hexOf(cons)
+	return f
+}
+
+func hexOf(h ledger.Hash) string {
+	const d = "0123456789abcdef"
+	var b strings.Builder
+	for _, c := range h {
+		b.WriteByte(d[c>>4])
+		b.WriteByte(d[c&15])
+	}
+	return b.String()
+}
+
+func do(args ...string) (int, string) {
+	var out, errw bytes.Buffer
+	code := run(args, &out, &errw)
+	return code, out.String() + errw.String()
+}
+
+func TestVerifiesALawfulLog(t *testing.T) {
+	f := build(t, "agent")
+	code, out := do("-entries", f.entries, "-blobs", f.blobs, "-checkpoint", f.cp, "-constitution", f.constit)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	for _, want := range []string{"ok chain: 2 entries", "ok governance", "1 open intents", "ok checkpoint: size 2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestChainOnlyWithoutBlobs(t *testing.T) {
+	f := build(t, "agent")
+	code, out := do("-entries", f.entries)
+	if code != 0 || !strings.Contains(out, "skipped governance") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestGovernanceViolationIsNamed(t *testing.T) {
+	f := build(t, "val")
+	code, out := do("-entries", f.entries, "-blobs", f.blobs)
+	if code != 1 || !strings.Contains(out, "FAIL unauthorized_author") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestTamperedEntryFails(t *testing.T) {
+	f := build(t, "agent")
+	raw, _ := os.ReadFile(f.entries)
+	raw[ledger.EntrySize+10] ^= 1
+	os.WriteFile(f.entries, raw, 0o644)
+	code, out := do("-entries", f.entries, "-blobs", f.blobs)
+	if code != 1 || !strings.Contains(out, "FAIL bad_prev_hash") && !strings.Contains(out, "FAIL bad_signature") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestWrongConstitutionFails(t *testing.T) {
+	f := build(t, "agent")
+	code, out := do("-entries", f.entries, "-blobs", f.blobs, "-constitution", strings.Repeat("00", 32))
+	if code != 1 || !strings.Contains(out, "FAIL constitution_mismatch") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestTamperedCheckpointFails(t *testing.T) {
+	f := build(t, "agent")
+	raw, _ := os.ReadFile(f.cp)
+	raw[20] ^= 1
+	os.WriteFile(f.cp, raw, 0o644)
+	code, out := do("-entries", f.entries, "-blobs", f.blobs, "-checkpoint", f.cp)
+	if code != 1 || !strings.Contains(out, "FAIL") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestTruncatedEntriesFile(t *testing.T) {
+	f := build(t, "agent")
+	raw, _ := os.ReadFile(f.entries)
+	os.WriteFile(f.entries, raw[:len(raw)-1], 0o644)
+	code, out := do("-entries", f.entries)
+	if code != 1 || !strings.Contains(out, "FAIL bad_length") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestUsageErrors(t *testing.T) {
+	if code, _ := do(); code != 2 {
+		t.Errorf("no args: exit %d", code)
+	}
+	f := build(t, "agent")
+	if code, _ := do("-entries", f.entries, "-checkpoint", f.cp); code != 2 {
+		t.Errorf("checkpoint without blobs: exit %d", code)
+	}
+	if code, _ := do("-entries", f.entries, "-blobs", f.blobs, "-constitution", "xyz"); code != 2 {
+		t.Errorf("bad constitution hex: exit %d", code)
+	}
+	if code, _ := do("-entries", filepath.Join(f.dir, "missing")); code != 2 {
+		t.Errorf("missing file: exit %d", code)
+	}
+}

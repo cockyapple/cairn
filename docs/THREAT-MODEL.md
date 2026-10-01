@@ -30,12 +30,12 @@ are listed by capability, not name.
 | Show different logs to different people (split view) | A4 | Witness cosignatures on checkpoints; verifiers compare | Checkpoint rule in Phase 0; gossip in Phase 3 |
 | Forge an entry | A1 | Ed25519 signature over domain-separated bytes | Phase 0 |
 | Replay a signature in another context | A1 | Domain prefixes per object type | Phase 0 |
-| Malformed input exhausts memory or crashes a verifier | A1, A2 | Bounds checked before allocation, strict decoders, fuzzing | Bounds Phase 0; fuzzing Phase 1 |
+| Malformed input exhausts memory or crashes a verifier | A1, A2 | Bounds checked before allocation, strict decoders, fuzzing | Bounds Phase 0; fuzz targets written Phase 1 (run by hand, not in CI) |
 | Prompt injection turns an agent against its owner | A2, A3 | Structural containment, not model trust | See INJECTION-DEFENSE.md; Phase 2 and 5 |
-| Agent approves its own change | A3 | Invariant I1 | Commitment; enforced Phase 1 |
+| Agent approves its own change | A3 | Invariant I1 | Enforced in governance replay by role (Phase 1) |
 | Governance capture by fake reviewers | A6 | Staked, identity-weighted votes, distinct-reviewer rule, security-reviewer requirement, timelocks | Phase 4 |
-| Rushed malicious change | A5 | Tier delays and freeze | Phase 1 |
-| Attacker freezes the system to block a fix | A5 | I3: freeze never blocks rollback | Phase 1 |
+| Rushed malicious change | A5 | Tier delays and freeze | Enforced in replay (Phase 1), but delays rest on advisory entry times: see SPEC section 10.5 |
+| Attacker freezes the system to block a fix | A5 | I3: freeze never blocks rollback | Enforced in replay (Phase 1) |
 | Up to f validators equivocate | A5 | 3f+1 BFT, quorum n - (n-1)/3 | Quorum math Phase 0; protocol Phase 3 |
 | Key theft | A1 | Role separation, rotation via VALIDATORS epochs, hardware keys advised | Phase 1 |
 | Malicious dependency | A7 | Standard library only in the verifier; module and image pinned; reproducible build | Phase 0 (no deps); reproducible build Phase 1 |
