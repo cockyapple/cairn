@@ -40,7 +40,7 @@ are listed by capability, not name.
 | Key theft | A1 | Role separation, rotation via VALIDATORS epochs, hardware keys advised | Phase 1 |
 | Stolen key keeps writing until a tiered change clears its delay | A1, A3 | Emergency `REVOKE` entry, no delay (ADR-20, SPEC 10.3.1) | Built for agent and proposer keys; reviewer, validator and witness keys still need a T4 VALIDATORS change |
 | Permitted write built from poisoned input (confused deputy) | A2, A3 | Provenance marks on inputs; refuse or escalate consequential writes that trace to untrusted reads (ADR-20) | Planned, not built (Phase 3). Does not stop a well-formed lie |
-| Compromised agent floods the log, exhausting storage or verifier memory | A3 | Per-author rate and size caps at the sequencer; replay that does not hold every blob in memory (ADR-20) | Planned, not built (Phase 1). Per-entry bounds exist |
+| Compromised agent floods the log, exhausting storage or verifier memory | A3 | Per-author rate and size caps at the sequencer; replay that does not hold every blob in memory (ADR-20) | Partly built: the gatekeeper has a per-agent request budget (`RateLimit`) that logs one refusal per window plus a count, so refusals cannot flood the log. Not built: sequencer-side caps for a key that bypasses the gatekeeper, and streaming replay. Per-entry bounds exist |
 | Malicious dependency | A7 | Standard library only in the verifier; module and image pinned; reproducible build | Phase 0 (no deps); reproducible build Phase 1 |
 | One compromised agent pivots through others | A3 | Per-agent keys, sandboxes, typed message bus, narrowing-only delegation (I11) | Phase 1-2 |
 | Many agents stay under individual caps | A3 | Fleet budget, spawn-rate cap, fleet-wide anomaly freeze | Phase 3 |

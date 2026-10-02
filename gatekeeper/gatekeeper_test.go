@@ -26,6 +26,7 @@ type env struct {
 	l                                  *review.Log
 	val, wit, rev, prop, reader, actor ed25519.PrivateKey
 	now                                uint64
+	hook                               func() // called on every log clock read
 }
 
 func newEnv(t *testing.T) *env {
@@ -36,7 +37,13 @@ func newEnv(t *testing.T) *env {
 		{Role: ledger.RoleReviewer, Public: pub(e.rev)}, {Role: ledger.RoleProposer, Public: pub(e.prop)},
 		{Role: ledger.RoleAgent, Public: pub(e.reader)}, {Role: ledger.RoleAgent, Public: pub(e.actor)},
 	}}
-	l, err := review.New(e.val, ledger.BlobHash([]byte("c")), trust, func() uint64 { e.now++; return e.now })
+	l, err := review.New(e.val, ledger.BlobHash([]byte("c")), trust, func() uint64 {
+		e.now++
+		if e.hook != nil {
+			e.hook()
+		}
+		return e.now
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

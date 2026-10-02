@@ -49,6 +49,9 @@ func (g *Gatekeeper) Send(ctx context.Context, from, to, typ string, body []byte
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if err := g.admit(a); err != nil {
+		return err
+	}
 	action := "bus.send:" + typ
 	args := append([]byte(to+"\n"), body...)
 	if len(args) > a.MaxArgs {

@@ -132,7 +132,8 @@ exists today, and what does not, so nothing is oversold:
 | Static review page and eval result hashing (`cmd/cairn-review`, `eval`) | Built. The log records which eval result reviewers saw, not that the eval ran honestly |
 | Per-agent OS sandbox | **Not yet** |
 | Emergency revocation of agent and proposer keys (`REVOKE`) | **Built** (SPEC 10.3.1) |
-| Sequencer rate limits, provenance tracking in the gatekeeper, human-review pause | **Planned** after a survey of related projects; see ROADMAP |
+| Per-agent request budget in the gatekeeper (`RateLimit`, opt-in) | **Built**; counts beyond the first refusal per window are logged in aggregate |
+| Sequencer-side rate limits, provenance tracking in the gatekeeper, human-review pause | **Planned** after a survey of related projects; see ROADMAP |
 | Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |

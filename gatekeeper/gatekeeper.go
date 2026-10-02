@@ -73,6 +73,9 @@ type Agent struct {
 	// Allow lists the action types the agent may request. Empty allows nothing.
 	Allow   []string
 	MaxArgs int
+	// RateLimit caps requests per RateWindow (default one minute). Zero means no cap.
+	RateLimit  int
+	RateWindow time.Duration
 	// Config names the artifact the agent is running. When the gatekeeper has a
 	// View, the agent acts only while that exact artifact is the one in force.
 	ConfigTarget   string
@@ -83,7 +86,11 @@ type Agent struct {
 	// pending is a completion the log refused after the handler had run. The
 	// intent is still open, and the replay wants it closed first, so the agent
 	// takes no new action until this is written.
-	pending *pendingCompletion
+	pending     *pendingCompletion
+	winStart    time.Time
+	winCount    int
+	unlogged    int  // refusals counted but not individually logged
+	limitLogged bool // the first over-budget refusal of this window is on the log
 }
 
 type pendingCompletion struct {
@@ -104,7 +111,8 @@ type Gatekeeper struct {
 	boxes    map[string][]Message
 
 	View    View
-	Timeout time.Duration // per action; zero means one minute
+	Timeout time.Duration    // per action; zero means one minute
+	Now     func() time.Time // clock for rate windows; nil means time.Now
 }
 
 func New(l *review.Log) *Gatekeeper {
@@ -126,6 +134,9 @@ func (g *Gatekeeper) AddAgent(a *Agent) error {
 	a.allowed = map[string]bool{}
 	for _, t := range a.Allow {
 		a.allowed[t] = true
+	}
+	if a.RateLimit < 0 || a.RateWindow < 0 {
+		return errors.New("gatekeeper: rate limit and window cannot be negative")
 	}
 	if a.MaxArgs <= 0 {
 		a.MaxArgs = DefaultMaxArgs
@@ -236,6 +247,9 @@ func (g *Gatekeeper) Do(ctx context.Context, agent, actionType string, args []by
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if err := g.admit(a); err != nil {
+		return nil, err
+	}
 	return g.do(ctx, a, actionType, args, nil)
 }
 

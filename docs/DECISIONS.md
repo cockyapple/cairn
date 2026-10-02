@@ -200,8 +200,10 @@ proposer cannot get an unactivated proposal activated. Original wording: signed 
 quorum, naming one key. The governance replay stops accepting that key from the next
 entry. It must be limited to revoking, never granting, so it cannot be used to seize
 roles. A freeze must not block it (I3 spirit).
-(3) *Log growth.* Rate and size caps per author at the sequencer, and a replay that
-streams blobs. Admission limits are policy, not part of the wire format, so verifiers
+(3) *Log growth* (partly built). The gatekeeper now enforces an opt-in per-agent request
+budget; over-budget refusals are logged once per window and then counted, trading one
+entry per refusal for bounded log growth. Still planned: rate and size caps per author at
+the sequencer, and a replay that streams blobs. Admission limits are policy, not part of the wire format, so verifiers
 are unaffected.
 (4) *Provenance.* Taint marks carried by the gatekeeper onto call parameters, with a
 consequential write refused or escalated when it traces to an untrusted read. Cost: the

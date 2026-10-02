@@ -62,9 +62,11 @@ forced split view.
   rejects that key from the next entry on, and a freeze does not block it. Revoking a
   reviewer, validator or witness key still needs a T4 VALIDATORS change, by design, so one
   signer cannot stall governance.
-- **Sequencer admission limits.** Per-author rate and size caps at the log server, so a
-  compromised agent cannot flood the log with intents. Replay should not need every blob in
-  memory at once.
+- **Admission limits.** Built in the gatekeeper (opt-in `RateLimit` per agent): requests over
+  budget are refused, the first refusal per window is logged, and the count of the rest is
+  logged when the next window opens. A key that writes to the log directly does not pass
+  the gatekeeper, so per-author rate and size caps at the log server are still planned, as
+  is a replay that does not hold every blob in memory.
 - **Language-neutral vectors for proofs and governance**, which were already owed.
 
 ### Phase 2 (weeks 7 to 10): Review workflow and gatekeeper. MOSTLY BUILT
