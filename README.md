@@ -135,6 +135,7 @@ exists today, and what does not, so nothing is oversold:
 | Per-agent request budget in the gatekeeper (`RateLimit`, opt-in) | **Built**; counts beyond the first refusal per window are logged in aggregate |
 | Human-review pause for marked actions in the gatekeeper (`Review`, `Decide`) | **Built**; signed decision is logged in the completion blob, not enforced by the replay |
 | Session taint tracking in the gatekeeper (`Untrusted`, `Guard`, `ResetTaint`) | **Built**; per session, not per value, in memory only, and a lie from a trusted channel is not caught |
+| C2SP signed-note rendering of the checkpoint (`note`, `cairn-verify -note`), docs/SPEC-NOTE.md | **Built**; checked against the spec's own example only, never against a live witness; tile serving and the witness protocol are **not** built |
 | Sequencer-side rate limits | **Planned** after a survey of related projects; see ROADMAP |
 | Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |

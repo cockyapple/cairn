@@ -54,9 +54,10 @@ delegation and agent suspension. Fuzzing of every decoder.
 forced split view.
 
 *Added after the survey (planned, not built):*
-- **Checkpoint format decision, before the log server is written** (ADR-20). Keep the native
-  binary checkpoint as the signed object and add a C2SP signed-note rendering of the same
-  tree head for outside witnesses, rather than replacing the format. Decide, then build.
+- **Checkpoint format (BUILT, ADR-20).** The native binary checkpoint stays the signed object.
+  A C2SP signed-note rendering of the same tree head (package `note`, `docs/SPEC-NOTE.md`,
+  `cairn-verify -note`) lets outside witnesses attest to it. Tested against the signed-note
+  spec's own example; never run against real witness software.
 - **`REVOKE` entry (BUILT, ADR-20).** An emergency, no-delay revocation signed by one validator
   or security reviewer. It covers agent and proposer keys only and is permanent; the replay
   rejects that key from the next entry on, and a freeze does not block it. Revoking a
@@ -119,8 +120,9 @@ adversarial load.
   later entries that cite it. Memory writes should cite the intent that produced them.
 - **Credential injection at the execution boundary.** The gatekeeper holds secrets and attaches
   them to a call; the model never sees them.
-- **Tile-served log and the C2SP witness protocol**, once the log server exists, so existing
-  witnesses and tooling can work with it without a custom service.
+- **Tile-served log and the C2SP witness protocol** (not built; the note format they carry
+  is). Needs the log server, so existing witnesses and tooling can work with it without a
+  custom service.
 
 ### Phase 4 (weeks 15 to 22): Decentralize (research)
 Custom BFT with 3f+1 validators, specified in TLA+ and tested by deterministic simulation

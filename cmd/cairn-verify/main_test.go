@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cockyapple/cairn/ledger"
+	"github.com/cockyapple/cairn/note"
 )
 
 func testKey(name string) ed25519.PrivateKey {
@@ -195,5 +196,86 @@ func TestLoadBlobsRefusesMoreThanTheTotalCap(t *testing.T) {
 	defer func() { maxBlobTotal = old }()
 	if _, err := loadBlobs(dir); err == nil || !strings.Contains(err.Error(), "add up to more than") {
 		t.Fatalf("want a total-size refusal, got %v", err)
+	}
+}
+
+func writeNote(t *testing.T, f fixture, origin string, tamperRoot bool) string {
+	t.Helper()
+	raw, _ := os.ReadFile(f.entries)
+	var enc [][]byte
+	for i := 0; i < len(raw); i += ledger.EntrySize {
+		enc = append(enc, raw[i:i+ledger.EntrySize])
+	}
+	entries, err := ledger.DecodeChain(enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := ledger.NewCheckpoint(0, entries)
+	if tamperRoot {
+		cp.Root[0] ^= 1
+	}
+	text, err := note.Text("cairn.test/log", cp.Size, cp.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := note.SignValidator(testKey("val"), origin, text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := note.Assemble(text, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(f.dir, "cp.note")
+	if err := os.WriteFile(p, n, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func TestVerifiesANote(t *testing.T) {
+	f := build(t, "agent")
+	n := writeNote(t, f, "cairn.test/log", false)
+	code, out := do("-entries", f.entries, "-blobs", f.blobs, "-note", n, "-origin", "cairn.test/log")
+	if code != 0 || !strings.Contains(out, "ok note: size 2, 1 validator signatures and 0 witness") {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+}
+
+func TestNoteFailuresAreNamed(t *testing.T) {
+	f := build(t, "agent")
+	good := writeNote(t, f, "cairn.test/log", false)
+	args := func(n, origin string) []string {
+		return []string{"-entries", f.entries, "-blobs", f.blobs, "-note", n, "-origin", origin}
+	}
+	if code, out := do(args(good, "other.test/log")...); code != 1 || !strings.Contains(out, "FAIL origin_mismatch") {
+		t.Errorf("wrong origin: exit %d: %s", code, out)
+	}
+	wrongRoot := writeNote(t, f, "cairn.test/log", true)
+	if code, out := do(args(wrongRoot, "cairn.test/log")...); code != 1 || !strings.Contains(out, "FAIL root_mismatch") {
+		t.Errorf("wrong root: exit %d: %s", code, out)
+	}
+	raw, _ := os.ReadFile(good)
+	raw[len(raw)-5] ^= 1
+	os.WriteFile(good, raw, 0o644)
+	if code, out := do(args(good, "cairn.test/log")...); code != 1 || !strings.Contains(out, "FAIL") {
+		t.Errorf("tampered note: exit %d: %s", code, out)
+	}
+}
+
+func TestNoteUsageErrors(t *testing.T) {
+	f := build(t, "agent")
+	n := writeNote(t, f, "cairn.test/log", false)
+	if code, _ := do("-entries", f.entries, "-note", n, "-origin", "cairn.test/log"); code != 2 {
+		t.Errorf("note without blobs: exit %d", code)
+	}
+	if code, _ := do("-entries", f.entries, "-blobs", f.blobs, "-note", n); code != 2 {
+		t.Errorf("note without origin: exit %d", code)
+	}
+	if code, _ := do("-entries", f.entries, "-blobs", f.blobs, "-note", n, "-origin", "o", "-witness", "nope"); code != 2 {
+		t.Errorf("bad witness flag: exit %d", code)
+	}
+	if code, _ := do("-entries", f.entries, "-blobs", f.blobs, "-note", filepath.Join(f.dir, "missing"), "-origin", "o"); code != 2 {
+		t.Errorf("missing note: exit %d", code)
 	}
 }

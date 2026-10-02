@@ -191,7 +191,7 @@ signed-note rendering of the same tree head (origin, size, root) so existing wit
 tiles tooling can cosign and serve it. That note carries no epoch or head, so a witness
 attests the Merkle root only, which still commits to every entry. Replacing the format
 was rejected: it would rewrite SPEC section 6, the vectors and the quorum rules for no
-gain in the governance layer. Decide the exact mapping before the log server is built.
+gain in the governance layer. The mapping is decided and built (see the C2SP addendum below).
 (2) *`REVOKE`* (BUILT). A new entry kind (7), no delay, signed by one validator or security
 reviewer, naming one key. As built it covers agent and proposer keys only and is permanent:
 a single signer must not be able to remove a reviewer or validator, which would let one
@@ -249,3 +249,28 @@ requests are logged, but a taint is not itself written when it happens, so the l
 the refusal and the source it names rather than the moment the taint began. A lie that
 arrives through a channel not marked untrusted is not caught. `Untrusted` and `Guard`
 names must appear in `Allow`, so a typo cannot silently disable the protection.
+
+### ADR-20 addendum: C2SP signed-note checkpoints (BUILT)
+
+Decision (1) is settled and built. The native binary checkpoint stays the signed object
+and verification path (ADR-12 is untouched). A C2SP signed note carrying a plain
+three-line tlog-checkpoint (origin, size, root; no extension lines) is a second signature
+over the same tree head by the same keys. Validators sign it as Ed25519 note signatures
+under the log origin; witnesses cosign it as `0x04` cosignatures under names they choose.
+Full format and verification rules are in `docs/SPEC-NOTE.md`.
+Why a separate rendering and not a replacement: replacing the checkpoint would rewrite SPEC
+section 6, the vectors and the quorum rules for no gain in governance. Why no extension
+lines: epoch and head are derivable from the log, and C2SP discourages extensions, so a
+witness sees an ordinary checkpoint.
+Choices and limits: no wire change, so the vectors are unchanged and the new package
+(`note`) sits outside the 1,500-line verifier budget (only a three-line `Validate` export
+was added to `ledger`). A note is not canonical (unknown signers are ignored and order is
+free), so a tree head is identified by size and root. A note carries no epoch, so a witness
+attests the Merkle root and the verifier must be told the epoch's trust configuration. Only
+the signed-note example is an external test vector; the cosignature path has none. Tile
+serving and the witness protocol are not built and still need the log server.
+Audit: Gemini reviewed the package against the specification rules and reported one
+issue, that a note could verify with no known signature if a trust configuration had no
+validators and a zero witness threshold. That configuration is rejected by
+`TrustConfig.Validate`, which `Verify` runs first, so it is unreachable and no extra check
+was added.

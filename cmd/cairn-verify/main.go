@@ -3,6 +3,7 @@
 // signed checkpoint against the trust configuration the log itself established.
 //
 //	cairn-verify -entries log.bin [-blobs DIR] [-checkpoint cp.bin] [-constitution HEX]
+//	cairn-verify -entries log.bin -blobs DIR -note cp.note -origin NAME [-witness NAME=PUBHEX]...
 //
 // log.bin is the 178-byte entries back to back. DIR holds payload blobs as
 // files; they are matched by content hash, so file names do not matter.
@@ -16,10 +17,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cockyapple/cairn/governance"
 	"github.com/cockyapple/cairn/ledger"
+	"github.com/cockyapple/cairn/note"
 )
 
 const (
@@ -39,6 +42,10 @@ func run(args []string, out, errw io.Writer) int {
 	blobsDir := fs.String("blobs", "", "directory of payload blobs (needed for governance checks)")
 	cpPath := fs.String("checkpoint", "", "signed checkpoint file to verify")
 	constHex := fs.String("constitution", "", "expected constitution hash, 64 hex characters")
+	notePath := fs.String("note", "", "C2SP signed note to verify (needs -origin)")
+	origin := fs.String("origin", "", "log origin the note must carry; validators sign under it")
+	var witnesses witnessFlag
+	fs.Var(&witnesses, "witness", "NAME=PUBHEX a witness key and the name it cosigns under (repeatable)")
 	useClock := fs.Bool("use-clock", false, "reject entries dated more than 5 minutes after this machine's clock (makes delays checkable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -69,8 +76,8 @@ func run(args []string, out, errw io.Writer) int {
 
 	if *blobsDir == "" {
 		fmt.Fprintln(out, "skipped governance: no -blobs given, so payloads were not checked")
-		if *cpPath != "" {
-			fmt.Fprintln(errw, "cairn-verify: -checkpoint needs -blobs to learn the trust configuration")
+		if *cpPath != "" || *notePath != "" {
+			fmt.Fprintln(errw, "cairn-verify: -checkpoint and -note need -blobs to learn the trust configuration")
 			return 2
 		}
 		return 0
@@ -121,7 +128,60 @@ func run(args []string, out, errw io.Writer) int {
 		}
 		fmt.Fprintf(out, "ok checkpoint: size %d, epoch %d, %d signatures meet quorum and witness threshold\n", sc.Size, sc.Epoch, len(sc.Sigs))
 	}
+	if *notePath != "" {
+		return verifyNote(out, errw, *notePath, *origin, witnesses, st, entries)
+	}
 	return 0
+}
+
+func verifyNote(out, errw io.Writer, path, origin string, witnesses witnessFlag, st *governance.State, entries []ledger.Entry) int {
+	if origin == "" {
+		fmt.Fprintln(errw, "cairn-verify: -note needs -origin")
+		return 2
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintln(errw, "cairn-verify:", err)
+		return 2
+	}
+	_, size, _, err := note.Peek(raw)
+	if err != nil {
+		return failed(out, err)
+	}
+	trust, ok := st.TrustForSize(size)
+	if !ok || size > uint64(len(entries)) {
+		fmt.Fprintf(out, "FAIL %s: note covers %d entries, the log has %d\n", ledger.CodeSizeMismatch, size, len(entries))
+		return 1
+	}
+	res, err := note.VerifyLog(entries[:size], raw, note.Config{Origin: origin, WitnessNames: witnesses}, &trust)
+	if err != nil {
+		return failed(out, err)
+	}
+	fmt.Fprintf(out, "ok note: size %d, %d validator signatures and %d witness cosignatures meet quorum and threshold\n", res.Size, res.Validators, res.Witnesses)
+	return 0
+}
+
+// witnessFlag collects repeated -witness NAME=PUBHEX values.
+type witnessFlag map[[32]byte]string
+
+func (w *witnessFlag) String() string { return "" }
+
+func (w *witnessFlag) Set(v string) error {
+	i := strings.LastIndex(v, "=")
+	if i < 1 {
+		return fmt.Errorf("want NAME=PUBHEX")
+	}
+	b, err := hex.DecodeString(v[i+1:])
+	if err != nil || len(b) != 32 {
+		return fmt.Errorf("public key must be 64 hex characters")
+	}
+	if *w == nil {
+		*w = witnessFlag{}
+	}
+	var k [32]byte
+	copy(k[:], b)
+	(*w)[k] = v[:i]
+	return nil
 }
 
 func failed(out io.Writer, err error) int {

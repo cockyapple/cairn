@@ -129,3 +129,6 @@ func ValidatorQuorum(n int) int {
 	}
 	return n - (n-1)/3
 }
+
+// Validate reports whether t is a well-formed trust configuration.
+func (t *TrustConfig) Validate() error { return t.validate() }
