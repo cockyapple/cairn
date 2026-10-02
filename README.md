@@ -134,7 +134,8 @@ exists today, and what does not, so nothing is oversold:
 | Emergency revocation of agent and proposer keys (`REVOKE`) | **Built** (SPEC 10.3.1) |
 | Per-agent request budget in the gatekeeper (`RateLimit`, opt-in) | **Built**; counts beyond the first refusal per window are logged in aggregate |
 | Human-review pause for marked actions in the gatekeeper (`Review`, `Decide`) | **Built**; signed decision is logged in the completion blob, not enforced by the replay |
-| Sequencer-side rate limits, provenance tracking in the gatekeeper | **Planned** after a survey of related projects; see ROADMAP |
+| Session taint tracking in the gatekeeper (`Untrusted`, `Guard`, `ResetTaint`) | **Built**; per session, not per value, in memory only, and a lie from a trusted channel is not caught |
+| Sequencer-side rate limits | **Planned** after a survey of related projects; see ROADMAP |
 | Log server (sequencer), separate-machine witness | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |

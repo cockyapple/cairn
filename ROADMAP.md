@@ -104,11 +104,15 @@ anomaly freeze.
 adversarial load.
 
 *Added after the survey (planned, not built):*
-- **Provenance tracking in the gatekeeper.** Mark each input as trusted or untrusted, carry that
-  mark onto the parameters of a later call, and refuse or escalate a consequential write whose
-  parameters trace back to an untrusted read. This addresses a permitted action built from
-  poisoned input, which the policy layer alone cannot see. It will not stop a well-formed lie,
-  and the docs must say so.
+- **Provenance tracking in the gatekeeper (BUILT at session granularity, ADR-20).** An agent is
+  tainted once it runs an action marked `Untrusted`, or receives a message from a tainted
+  sender. A tainted agent cannot run its `Guard` actions: they are refused (`tainted_input`),
+  or with `GuardEscalate` held for the human-review pause. `ResetTaint` clears it and is
+  logged. This is per session, not per value: the gatekeeper cannot see data flow inside a
+  model, so it does not trace a single parameter back to its source. It does not stop a
+  well-formed lie from a channel marked trusted, a `NoTaint` message type is the
+  operator's claim that its bodies carry no free text, and taint does not survive a restart.
+  Planned: a replay rule, and per-value tracking if a data-flow model proves workable.
 - **Audit mode.** Classify actions as read, write or destructive and log what would have been
   refused before enforcing, so thresholds are set from data.
 - **Blast-radius trace.** A verifier-side tool that, given one entry or memory write, lists the

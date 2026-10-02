@@ -20,12 +20,19 @@ type MessageType struct {
 	Name     string
 	From, To []string // agent names
 	Validate func(body []byte) error
+	// NoTaint says bodies of this type carry no taint even from a tainted
+	// sender. Use it only when Validate admits no free text, such as enum-only
+	// fields; it is the operator's claim and the gatekeeper does not check it.
+	NoTaint bool
 }
 
 type Message struct {
 	Type string
 	From string
 	Body []byte
+	// Tainted is set when the sender had handled untrusted input. Receive
+	// passes the taint to the recipient.
+	Tainted bool
 }
 
 func (g *Gatekeeper) DeclareMessage(t *MessageType) error {
@@ -76,7 +83,7 @@ func (g *Gatekeeper) Send(ctx context.Context, from, to, typ string, body []byte
 		if len(g.boxes[to]) >= maxMailbox {
 			return nil, errors.New(CodeMailboxFull)
 		}
-		g.boxes[to] = append(g.boxes[to], Message{Type: typ, From: from, Body: slices.Clone(body)})
+		g.boxes[to] = append(g.boxes[to], Message{Type: typ, From: from, Body: slices.Clone(body), Tainted: !t.NoTaint && a.taintOf() != ""})
 		return nil, nil
 	}
 	_, err = g.do(ctx, a, action, args, deliver)
@@ -89,6 +96,14 @@ func (g *Gatekeeper) Receive(agent string) []Message {
 	defer g.mu.Unlock()
 	m := g.boxes[agent]
 	delete(g.boxes, agent)
+	if a, ok := g.agents[agent]; ok {
+		for _, x := range m {
+			if x.Tainted {
+				a.taint("message from " + x.From)
+				break
+			}
+		}
+	}
 	return m
 }
 

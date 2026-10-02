@@ -81,14 +81,25 @@ type Agent struct {
 	// Review lists action types that run only after a reviewer signs off. Each must
 	// also be in Allow. The intent stays open on the log while the action waits.
 	Review []string
+	// Untrusted lists action types whose results taint the agent: handlers that
+	// read the web, a mailbox, a file someone else wrote. Each must be in Allow.
+	Untrusted []string
+	// Guard lists action types the agent may not run while tainted (each must be
+	// in Allow). With GuardEscalate a tainted request is held for human review
+	// instead of refused.
+	Guard         []string
+	GuardEscalate bool
 	// Config names the artifact the agent is running. When the gatekeeper has a
 	// View, the agent acts only while that exact artifact is the one in force.
 	ConfigTarget   string
 	ConfigArtifact []byte
 
-	mu      sync.Mutex // serialises this agent's actions: the log chains them
-	allowed map[string]bool
-	review  map[string]bool
+	mu               sync.Mutex // serialises this agent's actions: the log chains them
+	allowed          map[string]bool
+	review           map[string]bool
+	untrusted, guard map[string]bool
+	tmu              sync.Mutex // guards taintedBy; a leaf lock, taken while holding g.mu
+	taintedBy        string
 	// pending is a completion the log refused after the handler had run. The
 	// intent is still open, and the replay wants it closed first, so the agent
 	// takes no new action until this is written.
@@ -152,6 +163,9 @@ func (g *Gatekeeper) AddAgent(a *Agent) error {
 		if !slices.Contains(a.Allow, t) {
 			return fmt.Errorf("gatekeeper: %q needs review but the agent may not request it", t)
 		}
+	}
+	if err := a.setProvenance(); err != nil {
+		return err
 	}
 	if a.RateLimit < 0 || a.RateWindow < 0 {
 		return errors.New("gatekeeper: rate limit and window cannot be negative")
@@ -293,12 +307,21 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	if r := g.configOK(a); r != nil {
 		return nil, g.refuse(a, actionType, args, r)
 	}
+	escalated := false
+	if a.guard[actionType] {
+		if by := a.taintOf(); by != "" {
+			if !a.GuardEscalate {
+				return nil, g.refuse(a, actionType, args, &Refusal{CodeTaintedInput, "the agent has handled untrusted input (" + by + ") and has not been reset"})
+			}
+			escalated = true
+		}
+	}
 	ih, err := g.intent(a, actionType, args)
 	if err != nil {
 		return nil, err
 	}
 	var reviewed []byte
-	if a.review[actionType] {
+	if a.review[actionType] || escalated {
 		d, r := g.awaitReview(ctx, a, ih, actionType, args)
 		if r == nil {
 			reviewed = d.header()
@@ -320,6 +343,9 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	res, herr := safeRun(cctx, run, args)
+	if a.untrusted[actionType] {
+		a.taint(actionType)
+	}
 	var blob []byte
 	switch {
 	case herr != nil:

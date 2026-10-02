@@ -205,10 +205,9 @@ budget; over-budget refusals are logged once per window and then counted, tradin
 entry per refusal for bounded log growth. Still planned: rate and size caps per author at
 the sequencer, and a replay that streams blobs. Admission limits are policy, not part of the wire format, so verifiers
 are unaffected.
-(4) *Provenance.* Taint marks carried by the gatekeeper onto call parameters, with a
-consequential write refused or escalated when it traces to an untrusted read. Cost: the
-gatekeeper needs a data-flow model, and it cannot detect a lie that is well-formed and
-sourced from a trusted channel.
+(4) *Provenance* (built at session granularity, see the addendum below). Taint marks carried
+by the gatekeeper onto call parameters were the original idea; that needs a data-flow
+model the gatekeeper does not have.
 (5) *Smaller items:* council resampling, hash-only
 ACTION payloads, audit mode, a blast-radius trace tool, credential injection, tile
 serving and the C2SP witness protocol.
@@ -230,3 +229,23 @@ only recorded on the log; the replay does not require an approval, and an agent 
 not go through the gatekeeper is not held. Making the replay require one would need a new
 entry kind or a payload field and is left for later. A reviewer key signs offline; the
 gatekeeper never holds it.
+
+### ADR-20 addendum: session taint (BUILT, gatekeeper only)
+
+The gatekeeper cannot see how a model uses what it read, so provenance is tracked per
+agent session. An agent is tainted when an action in its `Untrusted` list runs (success or
+failure, since a partial result can still carry text), or when it calls `Receive` on a
+message whose sender was tainted. Taint is applied at `Receive`, not on delivery, because
+the data only enters the recipient's context when it reads. A tainted agent's `Guard`
+actions are refused with `tainted_input`, naming the first source; with `GuardEscalate`
+they wait for the human-review pause instead, so a clean agent runs unattended and a
+tainted one needs a reviewer. `ResetTaint` is an operator call that logs the cleared
+source and a reason as the action `taint.reset`.
+Choices and limits: no wire change. A reader that passes only strictly validated enum
+fields to an actor still taints it by default, because a validator limits form, not
+truth; a message type can set `NoTaint` to declare otherwise, which is the operator's
+claim and is not checked. Taint is held in memory and a restart clears it. Refused guarded
+requests are logged, but a taint is not itself written when it happens, so the log shows
+the refusal and the source it names rather than the moment the taint began. A lie that
+arrives through a channel not marked untrusted is not caught. `Untrusted` and `Guard`
+names must appear in `Allow`, so a typo cannot silently disable the protection.
