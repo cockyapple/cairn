@@ -170,3 +170,9 @@ func VerifyLog(entries []Entry, sc *SignedCheckpoint, trust *TrustConfig) error 
 	}
 	return VerifyCheckpoint(sc, entries, trust)
 }
+
+// VerifySig reports whether sig is a valid signature by pub over this checkpoint.
+// It judges the signature alone, not whether pub is admitted or quorum is met.
+func (c *Checkpoint) VerifySig(pub [32]byte, sig [64]byte) bool {
+	return !smallOrder(pub) && ed25519.Verify(ed25519.PublicKey(pub[:]), checkpointSigInput(c), sig[:])
+}

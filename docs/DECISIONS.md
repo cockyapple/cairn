@@ -274,3 +274,31 @@ issue, that a note could verify with no known signature if a trust configuration
 validators and a zero witness threshold. That configuration is rejected by
 `TrustConfig.Validate`, which `Verify` runs first, so it is unreachable and no extra check
 was added.
+
+**ADR-20 addendum: the log server (slice 1).**
+Decision: one sequencer process, package `logserver`, command `cairn-logd`, specified in
+docs/LOG-SERVER.md. It admits an entry only if the log plus that entry replays under the
+governance rules, so the log on disk is always a log `cairn-verify` accepts. It holds no
+signing keys: validators and witnesses sign the 81-byte checkpoint body themselves and post
+signatures, and the server publishes a checkpoint only when `ledger.VerifyCheckpoint` accepts
+the canonical (sorted, admitted-only) set. An empty log accepts only a genesis from the
+configured author, to avoid first-writer-owns-the-log.
+Choices and limits: the storage directory is the verifier's input format, so there is no
+second format to trust. A rate limit charges a key only after its signature is proven and
+counts rejected submissions too. Admission checks entry dates against the server clock
+(`MaxSkew`), which the replay cannot do alone. Blobs are staged, the entry fsynced, then the
+blobs moved into place, so a crash leaves no unreferenced blobs and no entry without its
+payload; start-up replays everything and refuses to run on any inconsistency. Every append
+replays the whole log (O(n)), bounded by `MaxEntries`. No replication, TLS or read
+authentication. Only `Checkpoint.VerifySig` was added to `ledger`; the new packages sit
+outside the 1,500-line verifier budget.
+Audit: Gemini reviewed the package and reported three findings. (1) A 32-bit `int` overflow
+in the blob length parse could panic on a length with the top bit set; valid on 32-bit
+platforms, fixed by parsing as unsigned and comparing before converting. (2) The checks are
+not "cheapest first" because the signature is verified and the rate limit charged before the
+height and time checks; this is deliberate (a signed submission is the unit of load, and the
+signature must come first so a key cannot be drained by forgeries), so the comment was
+corrected instead of the order changed. (3) A crash between writing blobs and the entry could
+leave unreferenced blobs that count against the store cap on restart; valid, fixed by the
+staging scheme above. Manual mutation testing killed every mutant tried after two weak tests
+were strengthened (forged submissions draining a budget, a misnamed supporting blob).

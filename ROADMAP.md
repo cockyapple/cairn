@@ -66,8 +66,14 @@ forced split view.
 - **Admission limits.** Built in the gatekeeper (opt-in `RateLimit` per agent): requests over
   budget are refused, the first refusal per window is logged, and the count of the rest is
   logged when the next window opens. A key that writes to the log directly does not pass
-  the gatekeeper, so per-author rate and size caps at the log server are still planned, as
-  is a replay that does not hold every blob in memory.
+  the gatekeeper, so the log server now enforces its own per-author rate limit and blob,
+  store and entry caps (BUILT). Still owed: a replay that does not hold every blob in memory.
+- **Log server, slice 1 (BUILT, ADR-20, `docs/LOG-SERVER.md`).** Package `logserver` and command
+  `cairn-logd`: one sequencer that admits an entry only if the whole log still replays with it,
+  writes it to disk before acknowledging, serves entries, blobs and Merkle proofs, enforces
+  per-author rate limits and blob, store and entry caps, and collects checkpoint signatures
+  without holding any key. Its directory is what `cairn-verify` reads. Single process, no
+  replication, replay is O(n) per append, no TLS or read authentication of its own.
 - **Language-neutral vectors for proofs and governance**, which were already owed.
 
 ### Phase 2 (weeks 7 to 10): Review workflow and gatekeeper. MOSTLY BUILT
@@ -93,8 +99,7 @@ provably never loads.
 
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
 policy layer, message bus, review page and the end-to-end test are built. **Not built:**
-the per-agent OS sandbox, live-service tests of the adapters, and the log server that
-Phase 1 still owes. There is also no eval runner service: `eval` is a library, and the scores a
+the per-agent OS sandbox and live-service tests of the adapters. There is also no eval runner service: `eval` is a library, and the scores a
 proposal carries are the proposer's claim, which the log does not recompute. I4 and I11 are not enforced (SPEC 10.5).
 
 ### Phase 3 (weeks 11 to 14): Governed agent and fleets
