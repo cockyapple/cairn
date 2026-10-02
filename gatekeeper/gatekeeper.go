@@ -17,9 +17,11 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
+	"github.com/cockyapple/cairn/ledger"
 	"github.com/cockyapple/cairn/loader"
 	"github.com/cockyapple/cairn/review"
 )
@@ -76,6 +78,9 @@ type Agent struct {
 	// RateLimit caps requests per RateWindow (default one minute). Zero means no cap.
 	RateLimit  int
 	RateWindow time.Duration
+	// Review lists action types that run only after a reviewer signs off. Each must
+	// also be in Allow. The intent stays open on the log while the action waits.
+	Review []string
 	// Config names the artifact the agent is running. When the gatekeeper has a
 	// View, the agent acts only while that exact artifact is the one in force.
 	ConfigTarget   string
@@ -83,6 +88,7 @@ type Agent struct {
 
 	mu      sync.Mutex // serialises this agent's actions: the log chains them
 	allowed map[string]bool
+	review  map[string]bool
 	// pending is a completion the log refused after the handler had run. The
 	// intent is still open, and the replay wants it closed first, so the agent
 	// takes no new action until this is written.
@@ -109,16 +115,19 @@ type Gatekeeper struct {
 	handlers map[string]Handler
 	types    map[string]*MessageType
 	boxes    map[string][]Message
+	waiting  map[ledger.Hash]*waiting
 
 	View    View
 	Timeout time.Duration    // per action; zero means one minute
 	Now     func() time.Time // clock for rate windows; nil means time.Now
+	// ReviewTimeout bounds the wait for a human decision; zero means DefaultReviewTimeout.
+	ReviewTimeout time.Duration
 }
 
 func New(l *review.Log) *Gatekeeper {
 	return &Gatekeeper{
 		log: l, agents: map[string]*Agent{}, handlers: map[string]Handler{},
-		types: map[string]*MessageType{}, boxes: map[string][]Message{},
+		types: map[string]*MessageType{}, boxes: map[string][]Message{}, waiting: map[ledger.Hash]*waiting{},
 	}
 }
 
@@ -134,6 +143,15 @@ func (g *Gatekeeper) AddAgent(a *Agent) error {
 	a.allowed = map[string]bool{}
 	for _, t := range a.Allow {
 		a.allowed[t] = true
+	}
+	a.review = map[string]bool{}
+	for _, t := range a.Review {
+		a.review[t] = true
+	}
+	for _, t := range a.Review {
+		if !slices.Contains(a.Allow, t) {
+			return fmt.Errorf("gatekeeper: %q needs review but the agent may not request it", t)
+		}
 	}
 	if a.RateLimit < 0 || a.RateWindow < 0 {
 		return errors.New("gatekeeper: rate limit and window cannot be negative")
@@ -166,13 +184,14 @@ func okResult(b []byte) []byte      { return append([]byte("ok\n"), b...) }
 func errResult(msg string) []byte   { return []byte("error\n" + msg) }
 func refusalBlob(r *Refusal) []byte { return []byte("refused\n" + r.Code + "\n" + r.Detail) }
 
-func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte) error {
+func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte) (ledger.Hash, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if _, err := g.log.Intent(a.Key, actionType, args); err != nil {
-		return fmt.Errorf("%w: %v", ErrNotLogged, err)
+	h, err := g.log.Intent(a.Key, actionType, args)
+	if err != nil {
+		return h, fmt.Errorf("%w: %v", ErrNotLogged, err)
 	}
-	return nil
+	return h, nil
 }
 
 func (g *Gatekeeper) complete(a *Agent, actionType string, args, result []byte) error {
@@ -187,7 +206,7 @@ func (g *Gatekeeper) refuse(a *Agent, actionType string, args []byte, r *Refusal
 	if err := g.flush(a); err != nil {
 		return err
 	}
-	if err := g.intent(a, actionType, args); err != nil {
+	if _, err := g.intent(a, actionType, args); err != nil {
 		return err
 	}
 	if err := g.finish(a, actionType, args, refusalBlob(r)); err != nil {
@@ -274,8 +293,25 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	if r := g.configOK(a); r != nil {
 		return nil, g.refuse(a, actionType, args, r)
 	}
-	if err := g.intent(a, actionType, args); err != nil {
+	ih, err := g.intent(a, actionType, args)
+	if err != nil {
 		return nil, err
+	}
+	var reviewed []byte
+	if a.review[actionType] {
+		d, r := g.awaitReview(ctx, a, ih, actionType, args)
+		if r == nil {
+			reviewed = d.header()
+			r = g.configOK(a) // the wait can be long; the configuration may have changed
+		} else if d.Reviewer != ([32]byte{}) {
+			reviewed = d.header()
+		}
+		if r != nil {
+			if err := g.finish(a, actionType, args, append(reviewed, refusalBlob(r)...)); err != nil {
+				return nil, err
+			}
+			return nil, r
+		}
 	}
 	timeout := g.Timeout
 	if timeout == 0 {
@@ -293,6 +329,7 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	default:
 		blob = okResult(res)
 	}
+	blob = append(reviewed, blob...)
 	if err := g.finish(a, actionType, args, blob); err != nil {
 		return nil, fmt.Errorf("gatekeeper: action ran but its completion could not be logged: %w", err)
 	}

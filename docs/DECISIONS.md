@@ -209,9 +209,24 @@ are unaffected.
 consequential write refused or escalated when it traces to an untrusted read. Cost: the
 gatekeeper needs a data-flow model, and it cannot detect a lie that is well-formed and
 sourced from a trusted channel.
-(5) *Smaller items:* `human_review` pause on an open intent, council resampling, hash-only
+(5) *Smaller items:* council resampling, hash-only
 ACTION payloads, audit mode, a blast-radius trace tool, credential injection, tile
 serving and the C2SP witness protocol.
 Not adopted: a BFT framework or policy runtime in the core, and post-quantum signatures
 in the verifier. Cost of the plan: each item that touches the entry kinds changes SPEC
 and the vectors, so they are batched into one version bump rather than trickled in.
+
+### ADR-20 addendum: human-review pause (BUILT, gatekeeper only)
+
+An agent can be configured with action types that need a human decision. The gatekeeper
+logs the intent as usual and leaves it open. A reviewer or security reviewer in the epoch
+in force signs a decision (domain `cairn/review-decision/v1`, the intent's entry hash, one
+verdict byte); the entry hash commits to the agent, action, arguments and chain position,
+so a decision cannot be moved to another action. The action then runs, or is refused on a
+rejection or a timeout (default 24 hours), and the configuration is checked again after the
+wait. The completion blob begins `review:<approve|reject> <reviewer> <signature>`.
+Choices and limits: no wire change, so the pause is enforced by the gatekeeper process and
+only recorded on the log; the replay does not require an approval, and an agent that does
+not go through the gatekeeper is not held. Making the replay require one would need a new
+entry kind or a payload field and is left for later. A reviewer key signs offline; the
+gatekeeper never holds it.

@@ -78,8 +78,12 @@ and typed message bus.
 provably never loads.
 
 *Added after the survey (planned, not built):*
-- **`human_review` pause.** An action that policy marks for review leaves its intent open until
-  a signed approval entry is logged, then runs. Fits the existing intent and completion pair.
+- **`human_review` pause (BUILT in the gatekeeper, ADR-20).** An action an agent is marked `Review`
+  for logs its intent and stays open until a reviewer or security reviewer signs a decision
+  over that intent; it then runs, or is refused if rejected or if the wait times out. The
+  signed decision is recorded in the completion blob. The governance replay does not check
+  it: no new entry kind was added, so a verifier that wants to enforce review must read the
+  blobs itself. Planned: a replay rule that requires the approval.
 - **Council resampling.** If reviewer confidence is low or reviewers disagree narrowly, ask again
   before recording a vote, and log that it happened.
 - **Hash-only mode for ACTION payloads.** The log records the digest and the blob stays
