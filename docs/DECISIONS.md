@@ -302,3 +302,36 @@ corrected instead of the order changed. (3) A crash between writing blobs and th
 leave unreferenced blobs that count against the store cap on restart; valid, fixed by the
 staging scheme above. Manual mutation testing killed every mutant tried after two weak tests
 were strengthened (forged submissions draining a budget, a misnamed supporting blob).
+
+**ADR-20 addendum: the independent witness (slice 1).**
+Decision: package `witness` and command `cairn-witness`, specified in docs/WITNESS.md. A
+witness runs on another machine, fetches the whole log from the server, replays it under
+`governance.Replay`, and only then signs the checkpoint body and posts the signature. It is
+the first component that does not have to trust the log server: a server that shrinks,
+forks, or serves an invalid log gets no cosignature, and the refusal is classified
+(`log_shrank` and `history_diverged` are alarms, the rest are plain refusals).
+Choices and limits: the durable state (size, root, head) is written and fsynced before the
+signature is posted, so a crash can leave the witness remembering a signature it never
+delivered but never the reverse; the replay is then idempotent. On growth it re-reads only
+the last entry it holds plus the new ones, and compares that entry byte for byte, so a
+cached prefix cannot go stale unnoticed. Every server response is bounded (entry count,
+blob size, blob count, blob total, JSON body) and every blob is checked against the hash it
+was requested by; a blob the server cannot supply is reported as `unavailable`, not as a bad
+log. Signing is refused below the size already signed (`stale_size`), which is what stops a
+witness being walked backwards. Not built: gossip between witnesses, the C2SP witness
+protocol, TLS, more than one server, a streaming replay (it is O(n) per cycle, bounded by
+`MaxEntries`).
+Audit: Gemini reviewed the package and reported three findings, all valid and fixed.
+(1) A cold witness whose server had rolled back, asked for a size above the rolled-back
+size, got `bad_request` (not an alarm) instead of `log_shrank`; the shrink check now runs
+first. (2) The fetch loop made one wasted request after filling its target; it now returns
+as soon as the target is met (a cold cycle on a small log is exactly one read). (3) `Run`
+did not log the moment a checkpoint became complete when nothing else changed; it now does.
+Gemini found no flaw in the ordering of state write and signature post, the fork check
+against the stored root and head, or the cache commit rule.
+Mutation testing: 29 hand-written mutants of `witness.go` (each check inverted or removed)
+were run against the tests. The first pass left 7 alive, which showed real gaps: no test
+broke `prev_hash` while heights stayed right, none exercised `MaxEntries`, none asserted the
+exact refusal for a partial entry, and none ran at an epoch above 0, so the epoch passed to
+`NewCheckpoint` could have been wrong with every test green. Tests were added for each, and
+two dead defensive lines were deleted rather than tested. All mutants are now killed.

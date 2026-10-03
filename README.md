@@ -137,7 +137,8 @@ exists today, and what does not, so nothing is oversold:
 | Session taint tracking in the gatekeeper (`Untrusted`, `Guard`, `ResetTaint`) | **Built**; per session, not per value, in memory only, and a lie from a trusted channel is not caught |
 | C2SP signed-note rendering of the checkpoint (`note`, `cairn-verify -note`), docs/SPEC-NOTE.md | **Built**; checked against the spec's own example only, never against a live witness; tile serving and the witness protocol are **not** built |
 | Log server (`logserver`, `cairn-logd`, docs/LOG-SERVER.md): admission checks, durable append, proofs, per-author rate and size caps, checkpoint signature aggregation | **Built (slice 1)**; single process, replay is O(n) per append, no TLS or read authentication of its own, never run under load or in production |
-| Separate-machine witness, C2SP witness protocol and tile serving | **Not yet**: rest of Phase 1 |
+| Independent witness (`witness`, `cairn-witness`, docs/WITNESS.md): reads the whole log, replays governance itself, cosigns only extensions of what it signed before, refuses forks and shrinking | **Built (slice 1)**; tested against a hostile server in-process, never run on a second real machine; no gossip between witnesses, no TLS, replay is O(n) per cycle |
+| C2SP witness protocol and tile serving | **Not yet**: rest of Phase 1 |
 | BFT consensus | **Not yet**: Phase 4 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |
 

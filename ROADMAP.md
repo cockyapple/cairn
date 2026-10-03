@@ -125,6 +125,11 @@ adversarial load.
   later entries that cite it. Memory writes should cite the intent that produced them.
 - **Credential injection at the execution boundary.** The gatekeeper holds secrets and attaches
   them to a call; the model never sees them.
+- **Independent witness (BUILT, slice 1).** `witness` / `cairn-witness` (docs/WITNESS.md) checks the
+  whole log under the governance rules, keeps a durable record of the largest checkpoint it signed,
+  and refuses a log that forks from or is shorter than that. It catches a server that lies to it;
+  catching a server that shows two witnesses two histories still needs gossip between witnesses
+  (not built).
 - **Tile-served log and the C2SP witness protocol** (not built; the note format they carry
   is). Needs the log server, so existing witnesses and tooling can work with it without a
   custom service.

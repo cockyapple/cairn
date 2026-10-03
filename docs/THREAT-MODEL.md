@@ -27,7 +27,7 @@ are listed by capability, not name.
 | Threat | Adversary | Mitigation | Status |
 |--------|-----------|------------|--------|
 | Rewrite or delete history | A4 | Hash chain, Merkle root, signed checkpoints, independent witnesses | Verified by Phase 0 code and vectors |
-| Show different logs to different people (split view) | A4 | Witness cosignatures on checkpoints; verifiers compare | Checkpoint rule in Phase 0; C2SP note rendering built so outside witnesses can cosign (docs/SPEC-NOTE.md), but no witness protocol or gossip yet |
+| Show different logs to different people (split view) | A4 | Witness cosignatures on checkpoints; verifiers compare | Checkpoint rule in Phase 0; C2SP note rendering built so outside witnesses can cosign (docs/SPEC-NOTE.md), and an independent witness process (`cairn-witness`) that refuses forks and shrinking logs it was shown; no C2SP witness protocol and no gossip between witnesses yet, so two witnesses can still be shown two histories |
 | Forge an entry | A1 | Ed25519 signature over domain-separated bytes | Phase 0 |
 | Replay a signature in another context | A1 | Domain prefixes per object type | Phase 0 |
 | Malformed input exhausts memory or crashes a verifier | A1, A2 | Bounds checked before allocation, strict decoders, fuzzing | Bounds Phase 0; fuzz targets written Phase 1 (run by hand, not in CI) |
