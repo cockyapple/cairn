@@ -279,3 +279,26 @@ func TestNoteUsageErrors(t *testing.T) {
 		t.Errorf("missing note: exit %d", code)
 	}
 }
+
+func TestReadCappedRefusesAnOversizedFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "big")
+	if err := os.WriteFile(p, make([]byte, 11), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readCapped(p, 10); err == nil || !strings.Contains(err.Error(), "larger than") {
+		t.Fatalf("want a size refusal, got %v", err)
+	}
+	if b, err := readCapped(p, 11); err != nil || len(b) != 11 {
+		t.Fatalf("a file at the cap must load: %v", err)
+	}
+}
+
+func TestABlobAtTheWireCeilingIsAccepted(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a"), make([]byte, 2<<20), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadBlobs(dir); err != nil {
+		t.Fatalf("a 2 MiB payload is legal on the wire and must load: %v", err)
+	}
+}

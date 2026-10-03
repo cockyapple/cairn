@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -61,6 +62,15 @@ func genKey(path string) error {
 		return err
 	}
 	if err := f.Close(); err != nil {
+		return err
+	}
+	d, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	err = d.Sync()
+	d.Close()
+	if err != nil {
 		return err
 	}
 	pub := ed25519.NewKeyFromSeed(seed).Public().(ed25519.PublicKey)

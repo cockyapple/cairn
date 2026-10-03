@@ -18,15 +18,17 @@ the 1,500-line verifier budget (only a `Checkpoint.VerifySig` export was added t
 3. The author is in the current trust configuration (for the first entry: the configured
    genesis author, nobody else). With no genesis author set, an empty log refuses
    everything, so a stranger cannot claim it first.
-4. The signature verifies (small-order keys are rejected).
-5. The author is charged one submission against its rate limit. This happens only after
-   step 4, so nobody can spend a key they cannot sign with, and it happens whether or not
-   the entry is then accepted, so a flood of stale or invalid submissions from a real key
-   is limited too. Roles can have their own budget; 0 means unlimited. The first entry is exempt.
-6. `height` is the current length and `prev_hash` is the current head (409 otherwise).
-7. The entry is not dated more than `MaxSkew` seconds (default 300) after the server clock
+4. `height` is the current length and `prev_hash` is the current head (409 otherwise).
+5. The entry is not dated more than `MaxSkew` seconds (default 300) after the server clock
    (`future_entry`). This is the clock check the replay's `Now` option performs, applied at admission.
-8. Entry and blob caps (`MaxEntries`, `MaxBlobs`, `MaxStoreBytes`).
+6. The entry cap (`MaxEntries`); blob and store caps apply as blobs are staged.
+7. The signature verifies (small-order keys are rejected).
+8. The author is charged one submission against its rate limit. The cheap position, clock
+   and cap checks come first, so a client that lost a race for a height is told so without
+   being charged; the charge comes after the signature check, so nobody can spend a key
+   they cannot sign with, and it applies whether or not the entry then passes the replay,
+   so a flood of validly signed junk from a real key is limited. Roles can have their own
+   budget; 0 means unlimited. The first entry is exempt.
 9. The whole log plus the candidate replays cleanly under `governance.Replay`. If it does
    not, nothing is written and the response carries the governance code (422).
 
@@ -43,6 +45,15 @@ to whether its entry made it to disk, then **replays the entire log and refuses 
 if anything is inconsistent: a bad chain, a blob whose name is not its hash, a missing
 payload blob, a stored checkpoint that does not verify. If a disk write fails the server
 stops accepting appends (`log_broken`) until it is restarted and has rechecked everything.
+
+**Failure after the commit point.** Once the entry is fsynced it is part of the log. If a
+later step fails (renaming a blob out of `staging/`, syncing a directory), the server
+marks itself broken but still reports the append as accepted, because the entry is durable
+and memory now matches disk; returning an error would tell the client to retry an entry
+that is already committed. Every following request fails with `log_broken` until a restart
+repairs the staging area. Files and their parent directories are fsynced, but this has been
+reasoned about and reviewed, not tested by cutting power or killing the process at every
+write.
 
 ## HTTP interface
 
@@ -62,8 +73,10 @@ Bodies are binary unless noted. Errors are JSON: `{"error": "<code>", "detail": 
 
 Signatures are accepted only from a validator or witness in the trust configuration in
 force at that size. Partial signature sets are held in memory (at most 16 sizes) and a
-signer whose set was lost to a restart signs again. A checkpoint for a smaller size never
-replaces a larger one.
+signer whose set was lost to a restart signs again; a restart also forgets which sizes the
+server was collecting for. A checkpoint for a smaller size never replaces a larger one. A
+signature the server already holds is acknowledged without a rate-limit charge, so a
+signer's retry loop cannot lock itself out.
 
 ## Status codes and stable error codes
 
@@ -95,6 +108,9 @@ Package-defined codes: `malformed_request`, `not_genesis_author`, `log_uninitial
   authentication of its own. Bind it to a private address or put a proxy in front. Rate
   limits apply to admitted keys only; an unauthenticated flood of garbage requests is
   the proxy's job.
-- **The witness is not built.** The server aggregates signatures but does not run a witness
-  on a separate machine, and does not yet speak the C2SP witness protocol or serve tiles.
+- **The witness is a separate program** (`cairn-witness`, docs/WITNESS.md). The server only
+  aggregates signatures; it does not speak the C2SP witness protocol or serve tiles.
+- **Configuration is read at start.** Limits, the genesis author and the clock skew are
+  enforced from the process's start-up flags; changing them means a restart, and the log
+  does not record what they were.
 - The rate-limit window and counters are in memory and reset on restart.

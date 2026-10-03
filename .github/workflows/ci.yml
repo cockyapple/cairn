@@ -24,6 +24,9 @@ jobs:
           go run ./cmd/cairn-vectors > /tmp/v.json
           diff -u testdata/vectors-v1.json /tmp/v.json
       - name: no third-party dependencies
-        run: test "$(grep -c . go.mod)" -le 4 && ! test -e go.sum
+        run: |
+          test "$(grep -c . go.mod)" -le 4 && ! test -e go.sum
+          bad=$(go list -deps -test ./... | grep -v '^github.com/cockyapple/cairn' | grep -v '^vendor/' | grep '^[^/]*\.' || true)
+          test -z "$bad" || { echo "non-standard-library imports:"; echo "$bad"; exit 1; }
       - name: verifier size budget
         run: test "$(ls wire/*.go ledger/*.go | grep -v _test.go | xargs cat | wc -l)" -le 1500

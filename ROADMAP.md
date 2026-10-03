@@ -48,8 +48,9 @@ injection-defense and model/fleet design.
 ### Phase 1 (weeks 3 to 6): The ledger. PARTLY BUILT
 Append-only log server, inclusion and consistency proofs, verifier CLI, one witness on a
 separate machine, and the governance state machine that enforces roles, tiers, timelocks
-and freeze (invariants I1, I3, I4, I11). Formats for model identity, capability grants,
-delegation and agent suspension. Fuzzing of every decoder.
+and freeze (invariants I1 and I3 are enforced; I4 and I11 are not: SPEC 10.5). Formats for
+model identity, capability grants, delegation and agent suspension (not started). Fuzzing
+of every decoder (written; run by hand, not in CI).
 *Done when* the tamper suite passes, the verifier is under budget and a witness catches a
 forced split view.
 
@@ -101,6 +102,8 @@ provably never loads.
 policy layer, message bus, review page and the end-to-end test are built. **Not built:**
 the per-agent OS sandbox and live-service tests of the adapters. There is also no eval runner service: `eval` is a library, and the scores a
 proposal carries are the proposer's claim, which the log does not recompute. I4 and I11 are not enforced (SPEC 10.5).
+Phase 1 additions built since: the log server (`docs/LOG-SERVER.md`) and an independent
+witness process (`docs/WITNESS.md`), neither yet run on a second real machine.
 
 ### Phase 3 (weeks 11 to 14): Governed agent and fleets
 A first real agent that loads configuration only from the ledger, logs every action,

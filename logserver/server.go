@@ -158,6 +158,14 @@ func Open(cfg Config) (*Server, error) {
 		return nil, err
 	}
 	s.efile = f
+	// The directory entries for entries.bin and blobs/ must be durable before
+	// anything is acknowledged, or a crash could lose the whole log file.
+	for _, d := range []string{cfg.Dir, filepath.Dir(filepath.Clean(cfg.Dir))} {
+		if err := syncDir(d); err != nil {
+			f.Close()
+			return nil, err
+		}
+	}
 	raw, err := s.trimTail()
 	if err == nil {
 		err = s.recoverStaging(len(raw) / ledger.EntrySize)
@@ -393,10 +401,12 @@ func (s *Server) parseAppend(body []byte) (ledger.Entry, [][]byte, *Reject) {
 	return e, blobs, nil
 }
 
-// Append admits one entry. The checks run in a fixed order: who the author
-// is, then the signature, then the author is charged against its rate limit
-// (so a refused submission still costs the signer, and nobody can spend a key
-// they cannot sign with), then position, clock, caps and finally the full replay.
+// Append admits one entry. The checks run in a fixed order, cheapest first:
+// who the author is, then position, clock and the entry cap (a stale or
+// misplaced submission costs the signer nothing), then the signature, then the
+// author is charged against its rate limit (so a validly signed submission that
+// goes on to fail the replay still costs the signer, and nobody can spend a key
+// they cannot sign with), and finally the full replay.
 func (s *Server) Append(body []byte) (ledger.Hash, *Reject) {
 	e, blobs, rj := s.parseAppend(body)
 	if rj != nil {
@@ -435,14 +445,6 @@ func (s *Server) Append(body []byte) (ledger.Hash, *Reject) {
 		}
 		role = r
 	}
-	if !e.VerifySignature() {
-		return ledger.Hash{}, reject(http.StatusBadRequest, ledger.CodeBadSignature, "signature does not verify")
-	}
-	if n > 0 {
-		if rj := s.allow(e.Author, role); rj != nil {
-			return ledger.Hash{}, rj
-		}
-	}
 	if e.Height != uint64(n) {
 		return ledger.Hash{}, reject(http.StatusConflict, ledger.CodeBadHeight, fmt.Sprintf("the log is at %d entries; sign height %d", n, n))
 	}
@@ -454,6 +456,14 @@ func (s *Server) Append(body []byte) (ledger.Hash, *Reject) {
 	}
 	if n >= s.cfg.Limits.MaxEntries {
 		return ledger.Hash{}, reject(http.StatusInsufficientStorage, CodeLogFull, "the log has reached its entry limit")
+	}
+	if !e.VerifySignature() {
+		return ledger.Hash{}, reject(http.StatusBadRequest, ledger.CodeBadSignature, "signature does not verify")
+	}
+	if n > 0 {
+		if rj := s.allow(e.Author, role); rj != nil {
+			return ledger.Hash{}, rj
+		}
 	}
 
 	var fresh []ledger.Hash
@@ -512,12 +522,13 @@ func (s *Server) persist(e *ledger.Entry, fresh []ledger.Hash, byHash map[ledger
 		if err := os.MkdirAll(stage, 0o700); err != nil {
 			return err
 		}
+		if err := syncDir(s.cfg.Dir); err != nil {
+			os.RemoveAll(stage)
+			return err
+		}
 		err := writeFileSync(filepath.Join(stage, "height"), []byte(strconv.FormatUint(e.Height, 10)))
 		for i := 0; err == nil && i < len(fresh); i++ {
 			err = writeFileSync(filepath.Join(stage, hex.EncodeToString(fresh[i][:])), byHash[fresh[i]])
-		}
-		if err == nil {
-			err = syncDir(stage)
 		}
 		if err != nil {
 			os.RemoveAll(stage)
@@ -570,7 +581,10 @@ func writeFileSync(path string, b []byte) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
 }
 
 func syncDir(dir string) error {
@@ -717,8 +731,10 @@ func (s *Server) AddSignature(size uint64, pub [32]byte, sig [64]byte) (complete
 	if !cp.VerifySig(pub, sig) {
 		return false, reject(http.StatusBadRequest, ledger.CodeBadSignature, "signature does not verify")
 	}
-	if rj := s.allow(pub, role); rj != nil {
-		return false, rj
+	if !s.alreadyHave(cp.Size, pub, sig) {
+		if rj := s.allow(pub, role); rj != nil {
+			return false, rj
+		}
 	}
 	size = cp.Size
 	set := s.pending[size]
@@ -764,6 +780,22 @@ func (s *Server) AddSignature(size uint64, pub [32]byte, sig [64]byte) (complete
 		}
 	}
 	return true, nil
+}
+
+// alreadyHave reports whether this exact signature is already held for the
+// size, so a signer that retries a lost response is not charged for it.
+func (s *Server) alreadyHave(size uint64, pub [32]byte, sig [64]byte) bool {
+	if have, ok := s.pending[size][pub]; ok && have == sig {
+		return true
+	}
+	if s.latest != nil && s.latest.Size == size {
+		for _, cs := range s.latest.Sigs {
+			if cs.Public == pub && cs.Signature == sig {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Checkpoint returns the newest fully signed checkpoint, if there is one.

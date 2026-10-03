@@ -21,7 +21,9 @@ fetched and verified. The package is outside the 1,500-line verifier budget.
 Each cycle:
 
 1. Re-read the last entry it holds; it must be byte-identical (else `history_diverged`).
-   Then fetch only the new entries, checking height and `prev_hash` continuity.
+   Then fetch only the new entries, checking height and `prev_hash` continuity. A page
+   shorter than the page size that does not reach the log's end is refused (`unavailable`),
+   so a server cannot drip-feed one entry per request.
 2. Compare with its memory. A log shorter than the size it last signed is `log_shrank`
    (or `stale_size` when asked to sign a smaller prefix). A prefix root or head that
    differs from what it signed is `history_diverged`.
@@ -61,7 +63,8 @@ may be repaired; the witness never signs anything that fails a check.
 
 ## State file
 
-JSON, `version` 1, mode 0600, written atomically. It holds the largest size signed and
+JSON, `version` 1, mode 0600 (a file readable by group or others is refused with
+`state_error`), written atomically. It holds the largest size signed and
 that prefix's Merkle root and head hash. It is **the witness's memory**: if it is lost or
 rolled back, the witness can be shown a fork and will sign it. Keep it on durable storage
 and back it up. A state file that exists but cannot be parsed strictly (unknown field,

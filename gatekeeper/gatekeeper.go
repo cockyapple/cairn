@@ -13,6 +13,7 @@
 package gatekeeper
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"errors"
@@ -151,6 +152,11 @@ func (g *Gatekeeper) AddAgent(a *Agent) error {
 	if _, dup := g.agents[a.Name]; dup {
 		return fmt.Errorf("gatekeeper: agent %q already exists", a.Name)
 	}
+	for _, o := range g.agents {
+		if o.Key.Equal(a.Key) {
+			return fmt.Errorf("gatekeeper: agent %q already uses this key, and one key must mean one agent", o.Name)
+		}
+	}
 	a.allowed = map[string]bool{}
 	for _, t := range a.Allow {
 		a.allowed[t] = true
@@ -287,6 +293,9 @@ func (g *Gatekeeper) Do(ctx context.Context, agent, actionType string, args []by
 }
 
 func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args []byte, run Handler) ([]byte, error) {
+	// The log commits to the arguments the agent asked for, so nothing a handler
+	// or the caller does to its own slice may reach the intent or the completion.
+	args = bytes.Clone(args)
 	if err := g.flush(a); err != nil {
 		return nil, err
 	}
@@ -342,12 +351,15 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	res, herr := safeRun(cctx, run, args)
+	res, herr := safeRun(cctx, run, bytes.Clone(args))
 	if a.untrusted[actionType] {
 		a.taint(actionType)
 	}
 	var blob []byte
+	var rf *Refusal
 	switch {
+	case errors.As(herr, &rf):
+		blob = refusalBlob(rf)
 	case herr != nil:
 		blob = errResult(herr.Error())
 	case len(res) > maxResult:

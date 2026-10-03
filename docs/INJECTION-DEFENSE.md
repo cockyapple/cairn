@@ -1,5 +1,9 @@
 # Prompt-injection defense
 
+> **Status: design.** This document describes the intended design. What is built today is
+> listed in the README status table; most of what follows (capability grants, delegation,
+> fleet budgets, model scoring, the injection benchmark) is not implemented.
+
 ## The honest claim
 
 Prompt injection cannot be made impossible at the model level. A language model
@@ -10,6 +14,10 @@ Cairn makes a different claim, and it is one we can test:
 
 > **A successfully injected agent cannot do anything its capability grant does
 > not already allow, and everything it does is on the ledger.**
+
+That claim is the goal, not a property the code has today. It holds for an agent whose
+every action goes through the gatekeeper and whose process cannot act around it; the
+gatekeeper is not an OS sandbox, so a compromised agent process is outside it.
 
 The model is treated as an untrusted component, the same way a parser of
 network input is. Injection is assumed to succeed sometimes. The design goal is

@@ -88,10 +88,8 @@ func TestRevokeRules(t *testing.T) {
 	}
 }
 
-func TestRevocationSurvivesANewEpoch(t *testing.T) {
-	w := newWorld(t)
-	w.revoke("sec", "agent")
-	tc := trustConfig(1)
+// rotate walks a T4 VALIDATORS change to the point of the entry itself.
+func (w *world) rotate(tc ledger.TrustConfig) {
 	w.blobs[ledger.BlobHash(tc.Encode())] = tc.Encode()
 	pr := ledger.Proposal{Tier: ledger.T4, Target: "cairn/validators", DiffHash: ledger.BlobHash(tc.Encode())}
 	ph := w.put(ledger.KindProposal, "prop", pr.Encode())
@@ -102,8 +100,45 @@ func TestRevocationSurvivesANewEpoch(t *testing.T) {
 	w.activate("val", ph, pt+14*day, v1, v2, v3)
 	w.now = pt + 14*day
 	w.put(ledger.KindValidators, "val", tc.Encode())
+}
+
+func withoutKey(tc ledger.TrustConfig, name string) ledger.TrustConfig {
+	var keys []ledger.Key
+	for _, k := range tc.Keys {
+		if k.Public != pubOf(name) {
+			keys = append(keys, k)
+		}
+	}
+	tc.Keys = keys
+	return tc
+}
+
+func TestRevocationSurvivesANewEpoch(t *testing.T) {
+	w := newWorld(t)
+	w.revoke("sec", "agent")
+	w.rotate(withoutKey(trustConfig(1), "agent"))
+	if _, err := w.replay(); err != nil {
+		t.Fatal(err)
+	}
 	w.action("agent", "tool_call", 1, 0, ledger.Hash{})
 	if _, err := w.replay(); ErrCode(err) != CodeRevokedKey {
-		t.Fatalf("a revoked key listed again in a later epoch must stay revoked: %v", err)
+		t.Fatalf("a revoked key must stay revoked after a rotation: %v", err)
+	}
+}
+
+func TestRotationCannotReadmitARevokedKey(t *testing.T) {
+	w := newWorld(t)
+	w.revoke("sec", "agent")
+	w.rotate(trustConfig(1)) // still lists the revoked agent
+	if _, err := w.replay(); ErrCode(err) != CodeRevokedKey {
+		t.Fatalf("a new epoch listing a revoked key must be refused: %v", err)
+	}
+}
+
+func TestReplayWithoutBlobResolverFailsCleanly(t *testing.T) {
+	w := newWorld(t)
+	_, err := Replay(w.entries, nil, Options{})
+	if ErrCode(err) != CodeBadBlob {
+		t.Fatalf("nil resolver: %v", err)
 	}
 }

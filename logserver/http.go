@@ -58,7 +58,7 @@ func (s *Server) readBody(w http.ResponseWriter, r *http.Request, max int64) ([]
 }
 
 func (s *Server) hAppend(w http.ResponseWriter, r *http.Request) {
-	max := int64(ledger.EntrySize+1) + int64(maxBlobsPerAppend)*int64(s.cfg.Limits.MaxBlobBytes+4)
+	max := int64(ledger.EntrySize+1) + int64(maxBlobsPerAppend)*(int64(s.cfg.Limits.MaxBlobBytes)+4)
 	body, ok := s.readBody(w, r, max)
 	if !ok {
 		return

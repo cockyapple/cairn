@@ -23,8 +23,11 @@ cheap to bound and fuzz. Cost: human-unfriendly; tooling renders it.
 
 **ADR-5. Time is advisory u64 unix seconds.**
 Why: timestamps cannot be trusted, so ordering comes from height; an integer
-avoids RFC 3339 parsing differences between languages. Cost: timelocks use the
-validators' agreed checkpoint time, not the entry field, from Phase 1.
+avoids RFC 3339 parsing differences between languages. Cost: timelocks are
+measured on entry times, which are claims; SPEC 10.2 and 10.5 bound them with
+monotonicity, the sequencer's clock check and an optional verifier clock. A
+timelock anchored to the validators' agreed checkpoint time was the original
+plan and is not built.
 
 **ADR-6. Domain-separated signatures and hashes.**
 Why: prevents cross-protocol replay. Cost: none meaningful.
@@ -181,7 +184,7 @@ does anything else, and nothing runs until it is written. Explicit non-claim: th
 log does not recompute eval scores, so they remain the proposer's claim, and
 there is still no eval runner service, only the library.
 
-**ADR-20. Plan after the prior-art survey (PROPOSED, nothing here is built).**
+**ADR-20. Plan after the prior-art survey (PARTLY BUILT; see the addenda and the README status table).**
 Why: a survey of related open-source projects (read from their READMEs and the C2SP
 specs, not run) and a Gemini comparison, checked against this repo, found three
 gaps the threat model did not cover and several worthwhile borrowings.

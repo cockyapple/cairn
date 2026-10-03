@@ -103,8 +103,9 @@ func DecodeSignedCheckpoint(b []byte) (SignedCheckpoint, error) {
 // VerifyCheckpoint checks sc against the log prefix it claims to cover and
 // the trust configuration in force. The caller must already have verified the
 // chain (see VerifyLog). A checkpoint is canonical: signatures are in strictly
-// ascending public-key order and every signer is admitted, so one valid
-// checkpoint has exactly one encoding (ADR-12).
+// ascending public-key order and every signer is admitted, so a given set of
+// signatures has exactly one valid encoding (ADR-12). Different quorum subsets
+// are still different valid checkpoints for one tree head.
 func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig) error {
 	if sc == nil {
 		return fail(CodeBadCheckpointLen, "no checkpoint supplied")

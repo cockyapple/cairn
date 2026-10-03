@@ -83,8 +83,9 @@ func (l *Log) append(kind ledger.Kind, key ed25519.PrivateKey, payload []byte) (
 }
 
 func (l *Log) store(b []byte) ledger.Hash {
-	h := ledger.BlobHash(b)
-	l.Blobs[h] = b
+	c := bytes.Clone(b)
+	h := ledger.BlobHash(c)
+	l.Blobs[h] = c
 	return h
 }
 

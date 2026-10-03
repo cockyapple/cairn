@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -769,6 +770,48 @@ func TestStateFileIsNotIgnoredWhenDamaged(t *testing.T) {
 	if _, err := r.cycle(wi, 0); witness.Code(err) != witness.CodeDiverged {
 		t.Fatalf("a remembered root that matches nothing must refuse: %v", err)
 	}
+}
+
+func TestStateFileWithLooseModeIsRefused(t *testing.T) {
+	r := newRig(t, nil)
+	r.w.activated("x")
+	r.w.send()
+	if _, err := r.cycle(r.witness(), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(r.state, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := witness.New(r.cfg); witness.Code(err) != witness.CodeState {
+		t.Fatalf("a world-writable state file could let anyone rewrite what the witness remembers: %v", err)
+	}
+	if err := os.Chmod(r.state, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := witness.New(r.cfg); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestADrippingServerIsRefusedNotFollowed(t *testing.T) {
+	r := newRig(t, nil)
+	r.w.activated("x")
+	r.w.send()
+	r.front.setHook(func(rw http.ResponseWriter, q *http.Request) bool {
+		if !strings.HasPrefix(q.URL.Path, "/v1/entries") {
+			return false
+		}
+		start, _ := strconv.Atoi(q.URL.Query().Get("start"))
+		rw.Header().Set("X-Cairn-Size", strconv.Itoa(len(r.w.l.Entries)))
+		rw.Write(r.w.l.Entries[start].Encode())
+		return true
+	})
+	_, err := r.cycle(r.witness(), 0)
+	wantCode(t, err, witness.CodeUnavailable)
+	if !strings.Contains(err.Error(), "short page") {
+		t.Fatalf("wrong reason: %v", err)
+	}
+	r.noState()
 }
 
 func TestStateIsPrivateAndAtomic(t *testing.T) {

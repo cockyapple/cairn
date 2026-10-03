@@ -36,7 +36,7 @@ are listed by capability, not name.
 | Governance capture by fake reviewers | A6 | Staked, identity-weighted votes, distinct-reviewer rule, security-reviewer requirement, timelocks | Phase 4 |
 | Rushed malicious change | A5 | Tier delays and freeze | Enforced in replay (Phase 1), but delays rest on advisory entry times: see SPEC section 10.5 |
 | Attacker freezes the system to block a fix | A5 | I3: freeze never blocks rollback | Enforced in replay (Phase 1) |
-| Up to f validators equivocate | A5 | 3f+1 BFT, quorum n - (n-1)/3 | Quorum math Phase 0; protocol Phase 3 |
+| Up to f validators equivocate | A5 | 3f+1 BFT, quorum n - (n-1)/3 | Quorum math Phase 0; protocol Phase 4 (research) |
 | Key theft | A1 | Role separation, rotation via VALIDATORS epochs, hardware keys advised | Phase 1 |
 | Stolen key keeps writing until a tiered change clears its delay | A1, A3 | Emergency `REVOKE` entry, no delay (ADR-20, SPEC 10.3.1) | Built for agent and proposer keys; reviewer, validator and witness keys still need a T4 VALIDATORS change |
 | Permitted write built from poisoned input (confused deputy) | A2, A3 | Session taint: after untrusted input the agent cannot run guarded actions, or they wait for a human (ADR-20) | Partly built in the gatekeeper. Per session, not per value; lost on restart; does not stop a well-formed lie from a trusted channel |
@@ -45,6 +45,15 @@ are listed by capability, not name.
 | One compromised agent pivots through others | A3 | Per-agent keys, sandboxes, typed message bus, narrowing-only delegation (I11) | Phase 1-2 |
 | Many agents stay under individual caps | A3 | Fleet budget, spawn-rate cap, fleet-wide anomaly freeze | Phase 3 |
 | Weak local model is easily injected | A2 | Per-model eval score gates grants; unscored = minimum grant (I12) | Phase 5 |
+| An agent writes to the log directly and skips its gatekeeper | A3 | None in the log: the log checks keys and roles, not what a gatekeeper would have allowed. An agent holding its own signing key is outside the gatekeeper | Not mitigated; the gatekeeper is a policy layer, not a sandbox. Keep agent keys inside the gatekeeper process, and revoke a key that is used outside it |
+| Reviewer or security-reviewer key compromised or captured | A5, A6 | Distinct-reviewer rule, security-reviewer requirement, tier delays, freeze | Only as strong as the quorum: three captured reviewers, one of them a security reviewer, can pass a T4 change after its delay. A single stolen reviewer key can only be removed by a T4 change (REVOKE does not cover it) |
+| Validators lose a key and cannot rotate, or freeze the log and cannot lift it | A5 | VALIDATORS epochs need a quorum that includes the lost key's holder | Not mitigated: there is no key-recovery procedure, and a frozen log with a deadlocked quorum stays frozen |
+| Validators collude to rewrite recent history | A5 | Witness cosignatures, outside verifiers comparing checkpoints | A validator quorum plus the operator can fork before any witness has seen the new tip; detection depends on witnesses and verifiers actually comparing |
+| Clock manipulation shortens a timelock | A4, A5 | Monotonic entry times, sequencer clock check (`MaxSkew`), optional verifier clock | Time is advisory (ADR-5, SPEC 10.5); a verifier without a trusted clock cannot tell a backdated delay from a real one |
+| Rollback or stale data served to a client | A4 | A checkpoint that meets quorum, a witness that refuses to sign a smaller log | A client that never sees a newer checkpoint cannot tell it is behind: freshness needs a clock or a gossip channel, neither built |
+| Denial of service against the log server or a witness | A1 | Per-key rate limits, size caps, entry cap | The server has no authentication of its own for reads and no TLS; unauthenticated floods are a proxy's job. One process, no replication |
+| Build or release tampering | A7 | Standard library only; CI gates the import graph | No reproducible-build evidence, signed releases or provenance exist yet |
+| Partial signature state, gatekeeper state and taint lost on restart | A4 | The log and the witness's state file are durable | Partial checkpoint signatures, per-agent gatekeeper state and session taint are in memory; the server and gatekeeper read their configuration once at start |
 | Test keys used in production | all | Test keys come from public seeds and are documented as such | Documented |
 
 ## Out of scope for v1

@@ -19,8 +19,10 @@ Keywords MUST, SHOULD and MAY are as in RFC 2119.
   checkpoint signatures 1024). Bounds are checked **before** allocating.
 - Every signature, and every hash that is signed or chained (entry hash, Merkle
   nodes, checkpoint), uses a domain prefix (ends in `\x00`) so a signature made for
-  one purpose can never be replayed for another. Blob addresses are plain SHA-256
-  of the blob, on purpose: `sha256sum` reproduces them.
+  one purpose can never be replayed for another. Blob addresses, and therefore an
+  entry's `payload_hash`, are plain SHA-256 of the bytes, on purpose: `sha256sum`
+  reproduces them. They are content addresses, never signed on their own; the entry
+  hash that covers `payload_hash` is domain-separated.
 - No public key may be of small order (order dividing 8): `ed25519.Verify` accepts
   such keys and anyone could then forge for them. An entry whose author is one
   fails `bad_signature`; a TrustConfig that admits one is `bad_trust_config`.
@@ -98,10 +100,14 @@ a misordering is `unsorted_signers`); every signer is **admitted** (a stranger i
 `unknown_signer`); every signature verifies; validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.
 
-Consequence: a checkpoint is **canonical**. Because signatures are sorted and
-only admitted keys may sign, one valid checkpoint has exactly one encoding, so
-hashing the encoding is safe (ADR-12). Signers must therefore sign only with
-admitted keys, and a coordinator must sort before publishing.
+Consequence: a given *set* of signatures has exactly one valid encoding. Because
+signatures are sorted and only admitted keys may sign, no byte string that is not
+that encoding verifies (ADR-12). This is not the same as one checkpoint per tree
+head: different subsets of validators and witnesses that each meet quorum are
+different valid checkpoints for the same size, root and head. To identify a tree
+head, use size and root (or the checkpoint body); hash the full encoding only to
+identify that particular signed checkpoint. A coordinator must filter and sort
+before publishing.
 
 Quorum `n - (n-1)/3` means any two quorums share an honest validator when at
 most `(n-1)/3` are faulty. For n = 1, 4, 7 the quorum is 1, 3, 5.
@@ -192,6 +198,9 @@ check.
 
 - `effective_after` must be at least the proposal entry's time plus the delay
   (`delay_too_short`). A proposal activates once (`already_activated`).
+- A VALIDATORS entry's TrustConfig may not contain a key that has been revoked
+  (`revoked_key`): a revocation outlives every epoch, so a rotation cannot quietly
+  re-admit a withdrawn key.
 - A VALIDATORS entry must carry epoch current + 1 and a TrustConfig whose
   encoding hashes (plain SHA-256) to the `diff_hash` of an activated, unused
   `cairn/validators` proposal (`bad_validators_change`), and its own `time` must
@@ -250,8 +259,7 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
 - **I5, I6, I8, I9, I12** concern the gatekeeper and the agent runtime
   (Phase 2 and later), not the log.
 - **I11 (delegation only narrows).** There is no wire format yet for capability
-  grants or delegation, so there is nothing to check. It is a Phase 1 format
-  task that is not done.
+  grants or delegation, so there is nothing to check. Defining one is open work.
 - **Time.** Delays are measured on entry `time` values, which are claims. They
   are bounded by monotonicity and, in Stage A, by the sequencer refusing
   entries far from its own clock; a consumer that loads a change must compare

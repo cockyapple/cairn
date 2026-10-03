@@ -198,10 +198,17 @@ func parseHash(s string) (h ledger.Hash, ok bool) {
 }
 
 func loadState(path string) (*state, error) {
-	b, err := os.ReadFile(path)
+	fi, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
+	if err != nil {
+		return nil, refuse(CodeState, "%v", err)
+	}
+	if fi.Mode().Perm()&0o077 != 0 {
+		return nil, refuse(CodeState, "%s is readable or writable by group or others (mode %v); chmod 600 it", path, fi.Mode().Perm())
+	}
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, refuse(CodeState, "%v", err)
 	}
@@ -350,6 +357,7 @@ func (w *Witness) fetch(ctx context.Context, want uint64) ([]ledger.Entry, error
 		if len(got) == 0 {
 			return nil, refuse(CodeUnavailable, "server returned no entries at %d of %d", len(entries), size)
 		}
+		start := len(entries)
 		for _, e := range got {
 			if uint64(len(entries)) >= target {
 				break
@@ -364,6 +372,12 @@ func (w *Witness) fetch(ctx context.Context, want uint64) ([]ledger.Entry, error
 		}
 		if uint64(len(entries)) >= target {
 			return entries[:target], nil
+		}
+		// A page is only short at the end of the log, which the target check above
+		// has just ruled out. A server that dribbles entries out a few at a time
+		// would otherwise keep a replay busy for as many requests as it likes.
+		if len(got) < pageSize {
+			return nil, refuse(CodeUnavailable, "server returned a short page of %d entries at %d of %d", len(got), start, size)
 		}
 	}
 }

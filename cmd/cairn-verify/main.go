@@ -26,12 +26,34 @@ import (
 )
 
 const (
-	maxBlobBytes = 1 << 20
+	maxBlobBytes = 16 << 20 // the wire format's own ceiling for one payload
 	maxBlobs     = 1 << 16
+	maxNoteBytes = 1 << 20 // a checkpoint or note carries at most 1024 signatures
 )
 
 // maxBlobTotal bounds what a bundle may make the verifier hold in memory.
 var maxBlobTotal int64 = 256 << 20
+
+// maxEntriesBytes bounds the entries file: 2^20 entries, the log server's default limit.
+var maxEntriesBytes int64 = (1 << 20) * ledger.EntrySize
+
+// readCapped reads a whole file but refuses one larger than max, so a hostile
+// bundle cannot make the verifier allocate without limit.
+func readCapped(path string, max int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > max {
+		return nil, fmt.Errorf("%s is larger than %d bytes", path, max)
+	}
+	return b, nil
+}
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
@@ -55,7 +77,7 @@ func run(args []string, out, errw io.Writer) int {
 		return 2
 	}
 
-	raw, err := os.ReadFile(*entriesPath)
+	raw, err := readCapped(*entriesPath, maxEntriesBytes)
 	if err != nil {
 		fmt.Fprintln(errw, "cairn-verify:", err)
 		return 2
@@ -109,7 +131,7 @@ func run(args []string, out, errw io.Writer) int {
 		st.Trust().Epoch, st.Frozen, len(st.Activations), st.Completed, len(st.OpenIntents), len(st.Revocations))
 
 	if *cpPath != "" {
-		cb, err := os.ReadFile(*cpPath)
+		cb, err := readCapped(*cpPath, maxNoteBytes)
 		if err != nil {
 			fmt.Fprintln(errw, "cairn-verify:", err)
 			return 2
@@ -139,7 +161,7 @@ func verifyNote(out, errw io.Writer, path, origin string, witnesses witnessFlag,
 		fmt.Fprintln(errw, "cairn-verify: -note needs -origin")
 		return 2
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := readCapped(path, maxNoteBytes)
 	if err != nil {
 		fmt.Fprintln(errw, "cairn-verify:", err)
 		return 2

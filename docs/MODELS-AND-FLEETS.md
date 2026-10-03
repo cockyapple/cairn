@@ -1,5 +1,9 @@
 # Any model, many agents
 
+> **Status: design.** This document describes the intended design. What is built today is
+> listed in the README status table; most of what follows (capability grants, delegation,
+> fleet budgets, model scoring, the injection benchmark) is not implemented.
+
 Two requirements: Cairn must work with **any LLM, cloud or local**, and must run
 **many agents at once** without giving up protection. Both follow from one rule
 that is already in the constitution: the model is an untrusted component.

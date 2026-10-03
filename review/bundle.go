@@ -3,6 +3,7 @@ package review
 import (
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -14,9 +15,12 @@ import (
 var maxBlobTotal int64 = 256 << 20
 
 const (
-	maxBlobBytes = 1 << 20
+	maxBlobBytes = 16 << 20 // the wire format's own ceiling for one payload
 	maxBlobs     = 1 << 16
 )
+
+// maxLogBytes bounds log.bin: 2^20 entries, the log server's default limit.
+var maxLogBytes int64 = (1 << 20) * ledger.EntrySize
 
 // SaveBundle writes the layout cairn-verify reads: dir/log.bin holds the
 // entries back to back, dir/blobs/ holds one file per blob named by its hash.
@@ -42,9 +46,17 @@ func SaveBundle(dir string, entries []ledger.Entry, blobs governance.MapBlobs) e
 // LoadBundle reads a bundle. Blobs are matched by content hash, never by file
 // name, and the chain is verified as it is decoded.
 func LoadBundle(dir string) ([]ledger.Entry, governance.MapBlobs, error) {
-	raw, err := os.ReadFile(filepath.Join(dir, "log.bin"))
+	f, err := os.Open(filepath.Join(dir, "log.bin"))
 	if err != nil {
 		return nil, nil, err
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, maxLogBytes+1))
+	f.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+	if int64(len(raw)) > maxLogBytes {
+		return nil, nil, fmt.Errorf("log.bin is larger than %d bytes", maxLogBytes)
 	}
 	if len(raw) == 0 || len(raw)%ledger.EntrySize != 0 {
 		return nil, nil, fmt.Errorf("log.bin is %d bytes, not a multiple of %d", len(raw), ledger.EntrySize)

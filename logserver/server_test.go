@@ -440,12 +440,12 @@ func TestRateLimit(t *testing.T) {
 	pe := f.l.Entries[len(f.l.Entries)-1]
 	good := f.payloadOf(pe)
 
-	// Invalid submissions from an admitted key count too.
-	bad := pe
-	bad.PrevHash[0] ^= 1
+	// A validly signed submission that fails the governance replay still costs the signer.
+	junk := []byte("not a proposal")
+	bad := ledger.Entry{Height: pe.Height, Kind: ledger.KindProposal, PayloadHash: ledger.BlobHash(junk), Time: pe.Time, PrevHash: pe.PrevHash}
 	bad.Sign(f.prop)
 	for i := 0; i < 3; i++ {
-		if r := f.do("POST", "/v1/append", logserver.EncodeAppend(bad, good)); r.Status != 409 {
+		if r := f.do("POST", "/v1/append", logserver.EncodeAppend(bad, junk)); r.Status != 422 {
 			t.Fatalf("attempt %d: %d %s", i, r.Status, r.Body)
 		}
 	}
@@ -464,6 +464,38 @@ func TestRateLimit(t *testing.T) {
 	f.advance(61 * time.Second)
 	if r := f.do("POST", "/v1/append", logserver.EncodeAppend(pe, good)); r.Status != 201 {
 		t.Fatalf("after the window: %d %s", r.Status, r.Body)
+	}
+}
+
+func TestStaleSubmissionsAreNotCharged(t *testing.T) {
+	f := newFx(t, func(c *logserver.Config) { c.Limits.Default = 2 })
+	f.sendAll(0)
+	f.propose("a")
+	pe := f.l.Entries[len(f.l.Entries)-1]
+	good := f.payloadOf(pe)
+	stale := pe
+	stale.PrevHash[0] ^= 1
+	stale.Sign(f.prop)
+	for i := 0; i < 10; i++ {
+		if r := f.do("POST", "/v1/append", logserver.EncodeAppend(stale, good)); r.Status != 409 {
+			t.Fatalf("stale %d: %d %s", i, r.Status, r.Body)
+		}
+	}
+	if r := f.do("POST", "/v1/append", logserver.EncodeAppend(pe, good)); r.Status != 201 {
+		t.Fatalf("a client that lost a race was locked out: %d %s", r.Status, r.Body)
+	}
+}
+
+func TestRepeatedIdenticalSignatureIsNotCharged(t *testing.T) {
+	f := newFx(t, func(c *logserver.Config) { c.Limits.Default = 2 })
+	f.sendAll(0)
+	n := uint64(len(f.l.Entries))
+	cp := ledger.NewCheckpoint(0, f.l.Entries)
+	req := f.sigReq(n, f.val, cp)
+	for i := 0; i < 8; i++ {
+		if r := f.do("POST", "/v1/checkpoint/signature", req); r.Status != 202 {
+			t.Fatalf("retry %d of the same signature: %d %s", i, r.Status, r.Body)
+		}
 	}
 }
 

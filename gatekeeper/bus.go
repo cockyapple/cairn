@@ -81,7 +81,7 @@ func (g *Gatekeeper) Send(ctx context.Context, from, to, typ string, body []byte
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		if len(g.boxes[to]) >= maxMailbox {
-			return nil, errors.New(CodeMailboxFull)
+			return nil, &Refusal{CodeMailboxFull, "the recipient's mailbox is full"}
 		}
 		g.boxes[to] = append(g.boxes[to], Message{Type: typ, From: from, Body: slices.Clone(body), Tainted: !t.NoTaint && a.taintOf() != ""})
 		return nil, nil

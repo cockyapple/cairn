@@ -247,6 +247,9 @@ func (r *replayer) trust() *ledger.TrustConfig { return &r.st.Epochs[len(r.st.Ep
 func (r *replayer) epoch() uint64 { return r.trust().Epoch }
 
 func (r *replayer) payload(e *ledger.Entry) ([]byte, error) {
+	if r.blobs == nil {
+		return nil, fail(e.Height, CodeBadBlob, "no blob resolver supplied")
+	}
 	b, ok := r.blobs.Get(e.PayloadHash)
 	if !ok {
 		return nil, fail(e.Height, CodeBadBlob, "payload blob is not available")
@@ -498,6 +501,11 @@ func (r *replayer) validators(e *ledger.Entry, b []byte) error {
 	}
 	if tc.Epoch != r.epoch()+1 {
 		return fail(e.Height, CodeWrongEpoch, "a new epoch must be exactly one more than the current one")
+	}
+	for _, k := range tc.Keys {
+		if r.revoked[k.Public] {
+			return fail(e.Height, CodeRevokedKey, "the new trust configuration contains a revoked key")
+		}
 	}
 	if r.st.Frozen {
 		return fail(e.Height, CodeFrozen, "the validator set cannot change during a freeze")

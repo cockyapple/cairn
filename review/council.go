@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -68,6 +69,12 @@ func clone(m *Material) *Material {
 	c.Previous = bytes.Clone(m.Previous)
 	c.Artifact = bytes.Clone(m.Artifact)
 	c.Rationale = bytes.Clone(m.Rationale)
+	c.Info.Votes = slices.Clone(m.Info.Votes)
+	if m.Eval != nil {
+		ev := *m.Eval
+		ev.Cases = slices.Clone(m.Eval.Cases)
+		c.Eval = &ev
+	}
 	return &c
 }
 
