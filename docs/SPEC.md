@@ -1,8 +1,10 @@
 # Cairn ledger specification, version 1
 
-Status: Phase 1 draft. Phase 1 made three deliberate format changes before freezing
-(canonical checkpoints, the FREEZE lift scope, and the ACTION intent/completion
-rule); after those, any change is a new version. Conformance is defined by
+Status: draft. Version 1 is **not frozen**. Phase 1 made three format changes (canonical
+checkpoints, the FREEZE lift scope, and the ACTION intent/completion rule), and a fourth
+was added after the vectors were first published: entry kind 7, REVOKE (ADR-20), with the
+vectors regenerated. Until there is a second implementation, or a release is tagged, the
+format may still change; once either happens, any change is a new version. Conformance is defined by
 `testdata/vectors-v1.json`, not by this prose. Where they disagree, the vectors
 win and this file has a bug.
 
@@ -100,14 +102,16 @@ a misordering is `unsorted_signers`); every signer is **admitted** (a stranger i
 `unknown_signer`); every signature verifies; validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.
 
-Consequence: a given *set* of signatures has exactly one valid encoding. Because
-signatures are sorted and only admitted keys may sign, no byte string that is not
-that encoding verifies (ADR-12). This is not the same as one checkpoint per tree
-head: different subsets of validators and witnesses that each meet quorum are
-different valid checkpoints for the same size, root and head. To identify a tree
-head, use size and root (or the checkpoint body); hash the full encoding only to
-identify that particular signed checkpoint. A coordinator must filter and sort
-before publishing.
+Consequence: surplus, unsorted, repeated or stranger signatures cannot be added to a
+checkpoint without it being rejected, so a checkpoint cannot be padded or reordered
+into a second valid byte string (ADR-12). That is all it guarantees. It is **not**
+one checkpoint per tree head, and it does not make the full encoding a unique
+identifier: different subsets of validators and witnesses that each meet quorum are
+different valid checkpoints for the same size, root and head, and one signer can
+produce several valid Ed25519 signatures over the same body (a verifier cannot tell
+a deterministic nonce from any other). To identify a tree head, use size and root,
+or the 81-byte body; hash the full encoding only to identify one particular signed
+checkpoint. A coordinator must filter and sort before publishing.
 
 Quorum `n - (n-1)/3` means any two quorums share an honest validator when at
 most `(n-1)/3` are faulty. For n = 1, 4, 7 the quorum is 1, 3, 5.

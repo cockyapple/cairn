@@ -70,8 +70,10 @@ verified, because a key outside the trust config was ignored. That was not a
 forgery, but two byte strings were the same valid checkpoint. Decision: a valid
 checkpoint has signatures in strictly ascending public-key order and no
 stranger keys (`unsorted_signers`, `unknown_signer`, `duplicate_signer`). Now
-every single-bit flip of a surplus-signer checkpoint is rejected, and the
-encoding may be hashed. Cost: a coordinator must filter and sort before
+every single-bit flip of a surplus-signer checkpoint is rejected. (Correction
+from the external audit: this does not make the encoding a unique identifier of a
+tree head. Different quorum subsets, and different valid signatures by one signer,
+are different valid checkpoints; identify a tree head by size and root.) Cost: a coordinator must filter and sort before
 publishing, and a witness that is not yet admitted cannot cosign into the
 published checkpoint.
 

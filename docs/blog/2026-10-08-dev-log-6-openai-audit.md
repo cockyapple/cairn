@@ -1,0 +1,76 @@
+# Dev log 6: we asked OpenAI to audit Cairn. It found real bugs and three things we had simply gotten wrong
+
+*Part 9 of the Cairn series. Dev log 5 shipped a log server and a witness. This one is about the outside review that followed: what it found, what we fixed, and what we decided not to.*
+
+Every earlier audit of Cairn used Gemini, with DeepSeek on a few passes. Models from one family share blind spots, so we ran a different one. We gave `gpt-5.5` the code verbatim, pasted from `git diff` and `cat` rather than retyped, in four separate passes:
+
+- **A:** ledger, governance and the verifier.
+- **B:** review, gatekeeper and providers.
+- **C:** log server, witness and CI.
+- **D:** every phase in the roadmap, plus every public claim in the README and docs.
+
+Each pass was asked for ranked findings, trigger conditions, tests that would pass even if the code were wrong, and documentation that overclaims. Each ran three to four minutes. We then checked every finding against the repository before changing anything. A model reviewer is a lead generator, not an oracle. Here is how the leads came out.
+
+## Where it was right and we were wrong
+
+**The "one encoding" claim.** This is the embarrassing one. The spec and a code comment said a checkpoint has exactly one valid encoding. The audit pointed out that this is false in two ways. Different subsets of validators and witnesses that each meet quorum are different valid checkpoints for the same tree head. And one signer can produce several valid Ed25519 signatures over the same body, which a verifier cannot tell apart. What the canonical form actually guarantees is narrower: nobody can pad or reorder a checkpoint into a second valid byte string. We rewrote the spec section, the code comment and ADR-12, which had said the encoding "may be hashed", to say exactly that, and to say that a tree head is identified by its size and root, not by a hash of the signed encoding.
+
+**A revoked key could come back.** Revocation (kind 7) removes an agent or proposer key. But a later `VALIDATORS` entry, which installs a new trust configuration, could list that key again, and replay would accept it. Our docs said a revocation held "whatever later epochs say". That was untrue. Replay now rejects any trust configuration containing a revoked key (`revoked_key`). We rewrote the existing revocation test, which only covered the easy path, and added one that tries exactly the re-admission.
+
+**Our own roadmap overclaimed.** Phase 1 said invariants I4 and I11 were enforced. They are not, and nothing in the replay checks them. We also found that the README said the governance code was about 590 lines when it is 646, and that the verifier was about 1,150 when it is 1,186. The budget check passed either way, but a number that has drifted from the code is a small lie, and we corrected both. We also fixed the README headline that said a manipulated agent "can do nothing its grant does not allow". The gatekeeper checks grants. It is not a sandbox, and the per-agent sandbox is still unbuilt.
+
+**The v1 freeze was not a freeze.** SPEC.md said version 1 was frozen and the test vectors published. REVOKE (kind 7) was added after that. We changed the header to say v1 is not frozen and to name what was added late.
+
+**Dev log 5 described the wrong rate-limit order.** The server charged an author's rate budget before it checked whether the entry was stale, and `AddSignature` charged for signatures it already held. Anyone can replay a public, already-signed entry, so anyone could spend another key's budget. The order is now: genesis and role, height, previous hash, time, size caps, signature, then the rate charge, then the replay. A retried signature we already have costs nothing. Dev log 5 documented the old behaviour as if it were a design choice. It was an ordering bug.
+
+## Real bugs, fixed with a test each
+
+- **Nil blob resolver panic.** `governance.Replay` with no resolver dereferenced nil. It now returns `bad_blob`.
+- **Verifier blob cap.** `cairn-verify` capped a blob at 1 MiB, but the wire format allows 16 MiB. A valid log with a large payload would be rejected by the one tool meant to accept it. The cap is now 16 MiB, with a test at the exact limit.
+- **Unbounded reads.** `cairn-verify` and the bundle loader read whole files into memory before checking any structure. All reads are now capped.
+- **Shared mutable buffers.** The review store kept the caller's byte slice, so a handler could change a blob after its hash was computed. The gatekeeper passed the same `args` to the log and to the handler. Both now copy. The council's clone copied slices shallowly, so one reviewer could alter evidence another reviewer saw. It now deep-copies votes and eval cases.
+- **One key, two agents.** Two agent names could share a key, which splits taint and rate state across names for one signer. `AddAgent` now refuses it.
+- **Mailbox full recorded as a handler error.** The bus declared a `mailbox_full` refusal but logged an ordinary error. Now it returns the typed refusal, and refusals returned by handlers are logged as refusals.
+- **Drip-fed pages.** A hostile server could return one-entry pages and keep the witness busy for up to the whole log. The witness now refuses a short page unless it has reached the target size.
+- **State file permissions.** The docs said the witness state file is mode 0600, but the code never checked on load. It now refuses a file readable by group or other.
+- **Weak CI dependency gate.** The "no third-party dependencies" check counted lines in `go.mod`, which a local `replace` directive could slip past. CI now also walks `go list -deps -test` and fails on any import outside the standard library and this module.
+- **32-bit body cap.** The HTTP body limit was computed in `int`. It is now `int64`.
+- **Missing directory fsyncs.** Creating or renaming a file is not durable until its directory is synced. The server, the witness key generator and `Open` now sync directories.
+
+That last item needs an honest caveat. We fixed it by reasoning about POSIX, not by fault injection. We have no test that pulls the power at each step and checks the log reopens. The tests prove the code runs and the log is intact after clean restarts. They do not prove crash durability, and we do not claim they do.
+
+## Judgment calls: documented, not changed
+
+- **Swallowed post-commit errors.** After the entry fsync, a failed rename or directory sync marks the server broken but returns success. The audit called this a bug. We think it is correct. The entry fsync is the commit point, the append did happen, and telling the client it failed would invite a duplicate. It is now documented as deliberate.
+- **Memory-only recovery state.** The gatekeeper's in-flight intents and review state live in memory, so a crash can strand an open intent. This is a real design limit, not a quick fix. It is in the threat model's gap list.
+- **Configuration checked only at start.** An action is checked against the trust configuration when it begins, not for its whole duration. Also a design limit, now listed.
+- **Test and mutation counts.** The audit noted that our published figures cannot be checked from the repository. That is fair. The raw outputs exist and we have not published them. We have not fixed this yet.
+
+## Pass D: the phase and claims audit
+
+This was the most useful pass and the one that produced the most edits and the fewest code changes. It read every phase and flagged where the roadmap leans on something a later phase builds: timelocks before a trusted time source, split-view resistance before witness gossip exists, gatekeeper authority before there is a sandbox. These are real ordering problems. The roadmap now has a section that lists them, so each of those claims reads as a design goal until the piece it depends on exists.
+
+It also flagged claims we should not make yet. We softened or labelled each one:
+
+- `INJECTION-DEFENSE.md` and `MODELS-AND-FLEETS.md` describe spend budgets, egress allowlists, anomaly freezes, provider identity and fleet behaviour the code does not implement. Both now open with a **design status** banner saying that.
+- The threat model now has a list of known gaps: a malicious validator quorum, reviewer compromise, key recovery, rollback and freshness for clients, clock manipulation and denial of service.
+- Interop with outside C2SP witnesses is not proven. We render checkpoints as signed notes, but nobody else's witness has cosigned one.
+- ADR-5 and SPEC 10.5 disagreed on timelocks, ADR-20's header said nothing in it was built when part of it is, and the BFT phase description did not match the roadmap.
+
+## The tests the audit called weak
+
+The audit listed tests that would still pass if the implementation were wrong, mostly checks that something returned an error without checking which error, or that a count was positive without checking it was right. We tightened the ones attached to confirmed bugs. We also added a test that reads the tier table from the spec and compares it to the code, so the two cannot drift again. That test failed on its first run, because it assumed every row has an "h/d" unit and the T0 row does not. The failure was in the test, and the fix was to make that group optional.
+
+## The re-audit
+
+After the fixes, we sent the whole diff back to Gemini for a second opinion, with the same neutral "senior engineer correctness review" framing as before, because the "hostile security reviewer" framing gets refused. It found one thing: that the staging directory is removed before the blobs directory is synced. We checked, and `persist` already syncs `blobs` first. It was a false positive. Reviewers hallucinate in both directions, which is why we verify before acting.
+
+## What is still not built
+
+The per-agent sandbox. Witness gossip and the C2SP witness protocol. Hash-only action payloads. Council resampling. An audit mode. Tile serving. Fault-injection tests for crash durability. Published raw numbers for our test and mutation claims. Enforcement of invariants I4 and I11. A real time source for timelocks.
+
+## What we learned
+
+Of everything the audit raised, the findings that hurt most were not clever attacks. They were our own sentences: "exactly one encoding", "whatever later epochs say", "enforced", "frozen". A tamper-evident log makes a precise promise, and a project built around it should be held to the same precision in its prose. The code fixes took an afternoon. Most of the work was making the words match.
+
+The repository is at github.com/cockyapple/cairn, and every change above is in commit `7c20a44` and the commits after it.

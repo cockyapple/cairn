@@ -148,6 +148,15 @@ trust classes, multi-agent adversarial tests, third-party review.
 *Added after the survey (planned, not built):* an optional external-policy adapter (Cedar or
 OPA) behind the gatekeeper, outside the core, for operators who already use one.
 
+## Ordering problems the external audit named
+
+Some claims lean on something a later phase builds. These are known and are not hidden:
+timelocks run on entry times (claims) before there is a trusted time source; split-view
+resistance is claimed before witness gossip and independent operators exist; gatekeeper
+authority is claimed before the per-agent sandbox exists; governance artifacts (models,
+grants, delegation) are promised before the ledger can interpret them. Until those land,
+read each of those claims as a design goal.
+
 ## Not planned
 
 A token, a general smart-contract VM, or claims that any model is injection-proof.
