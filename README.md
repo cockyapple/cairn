@@ -129,7 +129,7 @@ exists today, and what does not, so nothing is oversold:
 | Spec, threat model, constitution, decision records | Written |
 | Merkle inclusion and consistency proofs (RFC 9162), checked against Certificate Transparency reference roots | Built and tested |
 | Governance replay: who may write what, tier approvals and delays, validator rotation, freeze and lift, ACTION intent trail | Built and tested (invariants I1 and I3 enforced; see SPEC section 10.5 for the rest, which is not) |
-| Verifier CLI (`cmd/cairn-verify`) and fuzz targets for every decoder | Built; fuzzing is manual, not yet in CI |
+| Verifier CLI (`cmd/cairn-verify`) and fuzz targets for every decoder | Built; short fuzz runs in CI |
 | Language-neutral vectors for proofs and governance | **Not yet**: Go tests only, so a second implementation has nothing to check against |
 | Review workflow: proposal, council vote, activation, loader that serves only activated content (`review`, `loader`) | Built and tested, including a rejected change that the loader refuses |
 | Reviewers that are LLMs, humans or scripts, interchangeable (`review.Council`) | Built and tested against fake models; no live model has voted yet |

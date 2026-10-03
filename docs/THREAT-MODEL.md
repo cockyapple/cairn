@@ -30,7 +30,7 @@ are listed by capability, not name.
 | Show different logs to different people (split view) | A4 | Witness cosignatures on checkpoints; verifiers compare | Checkpoint rule in Phase 0; C2SP note rendering built so outside witnesses can cosign (docs/SPEC-NOTE.md), and an independent witness process (`cairn-witness`) that refuses forks and shrinking logs it was shown; no C2SP witness protocol and no gossip between witnesses yet, so two witnesses can still be shown two histories |
 | Forge an entry | A1 | Ed25519 signature over domain-separated bytes | Phase 0 |
 | Replay a signature in another context | A1 | Domain prefixes per object type | Phase 0 |
-| Malformed input exhausts memory or crashes a verifier | A1, A2 | Bounds checked before allocation, strict decoders, fuzzing | Bounds Phase 0; fuzz targets written Phase 1 (run by hand, not in CI) |
+| Malformed input exhausts memory or crashes a verifier | A1, A2 | Bounds checked before allocation, strict decoders, fuzzing | Bounds Phase 0; fuzz targets run for 20 seconds each in CI (shallow; no long soak run) |
 | Prompt injection turns an agent against its owner | A2, A3 | Structural containment, not model trust | See INJECTION-DEFENSE.md; Phase 2 and 5 |
 | Agent approves its own change | A3 | Invariant I1 | Enforced in governance replay by role (Phase 1) |
 | Governance capture by fake reviewers | A6 | Staked, identity-weighted votes, distinct-reviewer rule, security-reviewer requirement, timelocks | Phase 4 |

@@ -51,9 +51,17 @@ later step fails (renaming a blob out of `staging/`, syncing a directory), the s
 marks itself broken but still reports the append as accepted, because the entry is durable
 and memory now matches disk; returning an error would tell the client to retry an entry
 that is already committed. Every following request fails with `log_broken` until a restart
-repairs the staging area. Files and their parent directories are fsynced, but this has been
-reasoned about and reviewed, not tested by cutting power or killing the process at every
-write.
+repairs the staging area. Files and their parent directories are fsynced.
+
+**What is tested about crashes.** `TestCrashAtEveryStepOfPersistRecovers` runs a real
+append flow and copies the storage directory at every step of `persist` (blobs staged,
+entry written, entry synced, blobs renamed, directory synced), then opens each copy. Every
+copy must open to a log that is exactly before or exactly after the interrupted entry,
+with every payload present, no blob that no entry refers to, and no staging directory. A
+mutation of the recovery code makes it fail. This models a process that dies between steps
+with everything already written reaching the disk. It does **not** model power loss, where
+the filesystem may persist writes out of order or drop unsynced ones; whether the fsync
+calls are in the right places is still reasoned about and reviewed, not tested.
 
 ## HTTP interface
 

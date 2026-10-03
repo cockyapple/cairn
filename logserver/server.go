@@ -117,6 +117,8 @@ type Server struct {
 	rate      map[[32]byte]*window
 	pending   map[uint64]map[[32]byte][64]byte
 	latest    *ledger.SignedCheckpoint
+
+	crashHook func(point string, height uint64)
 }
 
 // Open loads (or creates) the log in cfg.Dir and checks all of it before
@@ -515,6 +517,12 @@ func (s *Server) Append(body []byte) (ledger.Hash, *Reject) {
 // persist makes one accepted entry durable: stage the new blobs, append and
 // sync the entry (the commit point), then move the blobs into place. A crash
 // at any step is settled by recoverStaging on the next start.
+func (s *Server) at(point string, height uint64) {
+	if s.crashHook != nil {
+		s.crashHook(point, height)
+	}
+}
+
 func (s *Server) persist(e *ledger.Entry, fresh []ledger.Hash, byHash map[ledger.Hash][]byte) error {
 	dir := filepath.Join(s.cfg.Dir, "blobs")
 	stage := filepath.Join(s.cfg.Dir, "staging")
@@ -535,6 +543,7 @@ func (s *Server) persist(e *ledger.Entry, fresh []ledger.Hash, byHash map[ledger
 			return err
 		}
 	}
+	s.at("staged", e.Height)
 	if _, err := s.efile.WriteAt(e.Encode(), s.elen); err != nil {
 		if terr := s.efile.Truncate(s.elen); terr != nil {
 			s.broken = terr
@@ -542,23 +551,27 @@ func (s *Server) persist(e *ledger.Entry, fresh []ledger.Hash, byHash map[ledger
 		os.RemoveAll(stage)
 		return err
 	}
+	s.at("entry-written", e.Height)
 	if err := s.efile.Sync(); err != nil {
 		s.broken = err
 		return err
 	}
 	s.elen += ledger.EntrySize
+	s.at("entry-synced", e.Height)
 	for _, h := range fresh {
 		name := hex.EncodeToString(h[:])
 		if err := os.Rename(filepath.Join(stage, name), filepath.Join(dir, name)); err != nil {
 			s.broken = err
 			return nil
 		}
+		s.at("renamed", e.Height)
 	}
 	if len(fresh) > 0 {
 		if err := syncDir(dir); err != nil {
 			s.broken = err
 			return nil
 		}
+		s.at("blobs-synced", e.Height)
 		os.RemoveAll(stage)
 	}
 	return nil

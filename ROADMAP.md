@@ -50,7 +50,7 @@ Append-only log server, inclusion and consistency proofs, verifier CLI, one witn
 separate machine, and the governance state machine that enforces roles, tiers, timelocks
 and freeze (invariants I1 and I3 are enforced; I4 and I11 are not: SPEC 10.5). Formats for
 model identity, capability grants, delegation and agent suspension (not started). Fuzzing
-of every decoder (written; run by hand, not in CI).
+of every decoder (7 targets, 20 seconds each in CI; short runs, not a soak).
 *Done when* the tamper suite passes, the verifier is under budget and a witness catches a
 forced split view.
 
