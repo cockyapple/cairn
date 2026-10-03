@@ -1091,3 +1091,24 @@ func TestRunReportsWhenTheCheckpointBecomesComplete(t *testing.T) {
 		t.Fatalf("lines: %q", lines)
 	}
 }
+
+// The second entry points at the first correctly but claims the wrong height.
+// The replay would refuse it too, but as a broken log; the witness should say
+// the server is feeding it a chain that does not continue.
+func TestRefusesAnEntryWithTheWrongHeight(t *testing.T) {
+	r := newRig(t, nil)
+	g := r.w.l.Entries[0]
+	e := ledger.Entry{Height: 5, PrevHash: g.Hash(), Kind: ledger.KindProposal, PayloadHash: ledger.BlobHash([]byte("x")), Time: g.Time + 1}
+	e.Sign(r.w.val)
+	raw := append(g.Encode(), e.Encode()...)
+	r.front.set(http.HandlerFunc(func(rw http.ResponseWriter, q *http.Request) {
+		rw.Header().Set("X-Cairn-Size", "2")
+		rw.Write(raw)
+	}))
+	_, err := r.cycle(r.witness(), 0)
+	wantCode(t, err, witness.CodeDiverged)
+	if !strings.Contains(err.Error(), "height") {
+		t.Fatalf("wrong reason: %v", err)
+	}
+	r.noState()
+}

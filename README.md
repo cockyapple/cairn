@@ -214,6 +214,7 @@ vectors assert exactly, so another language can match them.
 | [`docs/INJECTION-DEFENSE.md`](docs/INJECTION-DEFENSE.md) | How prompt injection is contained |
 | [`docs/MODELS-AND-FLEETS.md`](docs/MODELS-AND-FLEETS.md) | Any LLM, and many agents at once |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Architecture decision records |
+| [`docs/EVIDENCE.md`](docs/EVIDENCE.md) | Raw test and mutation-run outputs, how to reproduce them, and what they do not show |
 | `wire/` | Strict canonical binary reader and writer |
 | `ledger/` | Entries, chain, Merkle tree, trust config, checkpoints, verification |
 | `internal/vectorgen`, `cmd/cairn-vectors` | Deterministic vector generator |

@@ -157,6 +157,12 @@ authority is claimed before the per-agent sandbox exists; governance artifacts (
 grants, delegation) are promised before the ledger can interpret them. Until those land,
 read each of those claims as a design goal.
 
+## Testing evidence still owed
+
+The mutation list (`testdata/mutants.json`, run in CI) has 40 hand-written mutants, 32 of them in
+`witness`. `ledger`, `wire` and `note` have none, and the mutants are not generated mechanically.
+See [docs/EVIDENCE.md](docs/EVIDENCE.md) for what the numbers do and do not show.
+
 ## Not planned
 
 A token, a general smart-contract VM, or claims that any model is injection-proof.

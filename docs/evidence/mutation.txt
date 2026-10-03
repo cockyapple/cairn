@@ -1,0 +1,49 @@
+# go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 2 minutes)
+# base commit 36193f72cfa0692c2c188720a666d97a789d48c5 plus the uncommitted changes that add this file
+
+go version go1.24.13 linux/amd64
+killed     witness      witness: last-entry identity
+killed     witness      witness: height continuity
+killed     witness      witness: prev continuity
+killed     witness      witness: page shrink
+killed     witness      witness: page maxentries
+killed     witness      witness: page wholeentries
+killed     witness      witness: fetch want>size
+equivalent witness      witness: fetch empty page
+           an empty page is also a short page, and the short-page check below refuses it with the same code (unavailable); the branch exists only for a clearer message
+killed     witness      witness: shrink check
+equivalent witness      witness: root check
+           the head check beside it already fails on any change to the prefix, because fetch has verified that every entry links to the one before; each of the two is individually redundant
+equivalent witness      witness: head check
+           the root check beside it already fails on any change to the prefix, and the root commits to the last entry; each of the two is individually redundant
+killed     witness      witness: genesis pin
+killed     witness      witness: blob err->unavailable
+killed     witness      witness: blob hash check
+killed     witness      witness: blob count
+killed     witness      witness: blob sum
+killed     witness      witness: blob cache store
+killed     witness      witness: not witness
+killed     witness      witness: role check only
+killed     witness      witness: state save skipped
+killed     witness      witness: state not remembered
+killed     witness      witness: cache commit
+killed     witness      witness: clock
+killed     witness      witness: empty log
+killed     witness      witness: submit status
+killed     witness      witness: epoch
+killed     witness      witness: fetch shrink alarm
+killed     witness      witness: fetch early return
+killed     witness      witness: run complete flip
+killed     governance   governance: VALIDATORS may not re-admit a revoked key
+killed     governance   governance: new epoch must be exactly one more
+killed     gatekeeper   gatekeeper: one key means one agent
+killed     gatekeeper   gatekeeper: full mailbox refuses
+killed     logserver    logserver: repeated signature is not charged
+killed     logserver    logserver: recovery finishes a committed append (off by one)
+killed     logserver    logserver: recovery drops an uncommitted append (off by one)
+killed     witness      witness: short page is refused
+killed     witness      witness: state file must be private
+killed     review       review: bundle blob size cap
+killed     witness      witness: whole seen-prefix comparison removed
+
+40 mutants: 3 equivalent 37 killed

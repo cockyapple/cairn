@@ -3,6 +3,7 @@ package review_test
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -266,5 +267,28 @@ func TestBundleRefusesMoreThanTheTotalBlobCap(t *testing.T) {
 	defer review.SetMaxBlobTotal(16)()
 	if _, _, err := review.LoadBundle(dir); err == nil || !strings.Contains(err.Error(), "add up to more than") {
 		t.Fatalf("want a total-size refusal, got %v", err)
+	}
+}
+
+func TestBundleRefusesAnOversizedBlob(t *testing.T) {
+	f := newFixture(t)
+	if _, err := f.l.Propose(f.prop, ledger.T1, "tool/search", []byte("some artifact text"), []byte("rationale"), nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(t.TempDir(), "b")
+	if err := review.SaveBundle(dir, f.l.Entries, f.l.Blobs); err != nil {
+		t.Fatal(err)
+	}
+	big := filepath.Join(dir, "blobs", strings.Repeat("ab", 32))
+	fh, err := os.Create(big)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fh.Truncate(16<<20 + 1); err != nil {
+		t.Fatal(err)
+	}
+	fh.Close()
+	if _, _, err := review.LoadBundle(dir); err == nil || !strings.Contains(err.Error(), "is larger than") {
+		t.Fatalf("want a per-blob refusal, got %v", err)
 	}
 }

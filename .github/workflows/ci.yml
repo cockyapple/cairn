@@ -42,3 +42,13 @@ jobs:
           for t in ledger:FuzzDecodeEntry ledger:FuzzDecodeSignedCheckpoint ledger:FuzzDecodeTrustConfig ledger:FuzzDecodePayloads ledger:FuzzProofs logserver:FuzzAppend note:FuzzVerify; do
             go test -run '^$' -fuzz "^${t#*:}\$" -fuzztime 20s -parallel 2 "./${t%%:*}"
           done
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: every mutant in testdata/mutants.json is killed or declared equivalent
+        run: go run ./internal/mutate -j 2

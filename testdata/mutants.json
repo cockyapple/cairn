@@ -1,0 +1,245 @@
+[
+ {
+  "name": "witness: last-entry identity",
+  "file": "witness/witness.go",
+  "old": "got[0] != have[len(have)-1]",
+  "new": "false"
+ },
+ {
+  "name": "witness: height continuity",
+  "file": "witness/witness.go",
+  "old": "e.Height != uint64(len(entries))",
+  "new": "false"
+ },
+ {
+  "name": "witness: prev continuity",
+  "file": "witness/witness.go",
+  "old": "e.PrevHash != entries[len(entries)-1].Hash()",
+  "new": "false"
+ },
+ {
+  "name": "witness: page shrink",
+  "file": "witness/witness.go",
+  "old": "size < uint64(len(w.entries))",
+  "new": "false"
+ },
+ {
+  "name": "witness: page maxentries",
+  "file": "witness/witness.go",
+  "old": "size > uint64(w.cfg.MaxEntries)",
+  "new": "false"
+ },
+ {
+  "name": "witness: page wholeentries",
+  "file": "witness/witness.go",
+  "old": "len(raw)%ledger.EntrySize != 0",
+  "new": "false"
+ },
+ {
+  "name": "witness: fetch want>size",
+  "file": "witness/witness.go",
+  "old": "want > size",
+  "new": "false"
+ },
+ {
+  "name": "witness: fetch empty page",
+  "file": "witness/witness.go",
+  "old": "len(got) == 0",
+  "new": "false",
+  "equivalent": "an empty page is also a short page, and the short-page check below refuses it with the same code (unavailable); the branch exists only for a clearer message"
+ },
+ {
+  "name": "witness: shrink check",
+  "file": "witness/witness.go",
+  "old": "n < w.seen.Size",
+  "new": "false"
+ },
+ {
+  "name": "witness: root check",
+  "file": "witness/witness.go",
+  "old": "ledger.LogRoot(entries[:w.seen.Size]) != root ||",
+  "new": "root != root ||",
+  "equivalent": "the head check beside it already fails on any change to the prefix, because fetch has verified that every entry links to the one before; each of the two is individually redundant"
+ },
+ {
+  "name": "witness: head check",
+  "file": "witness/witness.go",
+  "old": "|| entries[w.seen.Size-1].Hash() != head",
+  "new": "|| head != head",
+  "equivalent": "the root check beside it already fails on any change to the prefix, and the root commits to the last entry; each of the two is individually redundant"
+ },
+ {
+  "name": "witness: genesis pin",
+  "file": "witness/witness.go",
+  "old": "w.cfg.Genesis != nil && entries[0].Hash() != *w.cfg.Genesis",
+  "new": "false"
+ },
+ {
+  "name": "witness: blob err->unavailable",
+  "file": "witness/witness.go",
+  "old": "if bf.err != nil {",
+  "new": "if false {"
+ },
+ {
+  "name": "witness: blob hash check",
+  "file": "witness/witness.go",
+  "old": "ledger.BlobHash(raw) != h",
+  "new": "false"
+ },
+ {
+  "name": "witness: blob count",
+  "file": "witness/witness.go",
+  "old": "len(b.w.blobs) >= b.w.cfg.MaxBlobs",
+  "new": "false"
+ },
+ {
+  "name": "witness: blob sum",
+  "file": "witness/witness.go",
+  "old": "b.w.blobSum+int64(len(raw)) > b.w.cfg.MaxBlobSum",
+  "new": "false"
+ },
+ {
+  "name": "witness: blob cache store",
+  "file": "witness/witness.go",
+  "old": "b.w.blobs[h] = raw",
+  "new": ""
+ },
+ {
+  "name": "witness: not witness",
+  "file": "witness/witness.go",
+  "old": "!ok || role != ledger.RoleWitness",
+  "new": "ok && role != role"
+ },
+ {
+  "name": "witness: role check only",
+  "file": "witness/witness.go",
+  "old": "!ok || role != ledger.RoleWitness",
+  "new": "!ok || role != role"
+ },
+ {
+  "name": "witness: state save skipped",
+  "file": "witness/witness.go",
+  "old": "w.seen == nil || n > w.seen.Size",
+  "new": "false"
+ },
+ {
+  "name": "witness: state not remembered",
+  "file": "witness/witness.go",
+  "old": "w.seen = next",
+  "new": ""
+ },
+ {
+  "name": "witness: cache commit",
+  "file": "witness/witness.go",
+  "old": "w.entries = entries\n",
+  "new": ""
+ },
+ {
+  "name": "witness: clock",
+  "file": "witness/witness.go",
+  "old": "opt.Now, opt.MaxSkew = uint64(w.cfg.Clock().Unix()), w.cfg.MaxSkew",
+  "new": ""
+ },
+ {
+  "name": "witness: empty log",
+  "file": "witness/witness.go",
+  "old": "if n == 0 {",
+  "new": "if false {"
+ },
+ {
+  "name": "witness: submit status",
+  "file": "witness/witness.go",
+  "old": "res.StatusCode != http.StatusAccepted",
+  "new": "false"
+ },
+ {
+  "name": "witness: epoch",
+  "file": "witness/witness.go",
+  "old": "trust.Epoch, entries)",
+  "new": "0, entries)"
+ },
+ {
+  "name": "witness: fetch shrink alarm",
+  "file": "witness/witness.go",
+  "old": "w.seen != nil && size < w.seen.Size",
+  "new": "false"
+ },
+ {
+  "name": "witness: fetch early return",
+  "file": "witness/witness.go",
+  "old": "\t\tif uint64(len(entries)) >= target {\n\t\t\treturn entries[:target], nil\n\t\t}\n\t\tif len(got) == 0 {",
+  "new": "\t\tif len(got) == 0 {"
+ },
+ {
+  "name": "witness: run complete flip",
+  "file": "witness/witness.go",
+  "old": " || res.Complete != lastComplete",
+  "new": "|| lastComplete != lastComplete"
+ },
+ {
+  "name": "governance: VALIDATORS may not re-admit a revoked key",
+  "file": "governance/governance.go",
+  "old": "if r.revoked[k.Public] {\n\t\t\treturn fail(e.Height, CodeRevokedKey, \"the new",
+  "new": "if r.revoked[k.Public] && false {\n\t\t\treturn fail(e.Height, CodeRevokedKey, \"the new"
+ },
+ {
+  "name": "governance: new epoch must be exactly one more",
+  "file": "governance/governance.go",
+  "old": "tc.Epoch != r.epoch()+1",
+  "new": "false"
+ },
+ {
+  "name": "gatekeeper: one key means one agent",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "o.Key.Equal(a.Key)",
+  "new": "false"
+ },
+ {
+  "name": "gatekeeper: full mailbox refuses",
+  "file": "gatekeeper/bus.go",
+  "old": "len(g.boxes[to]) >= maxMailbox",
+  "new": "false"
+ },
+ {
+  "name": "logserver: repeated signature is not charged",
+  "file": "logserver/server.go",
+  "old": "if !s.alreadyHave(cp.Size, pub, sig) {",
+  "new": "if true {"
+ },
+ {
+  "name": "logserver: recovery finishes a committed append (off by one)",
+  "file": "logserver/server.go",
+  "old": "h < uint64(entries)",
+  "new": "h+1 < uint64(entries)"
+ },
+ {
+  "name": "logserver: recovery drops an uncommitted append (off by one)",
+  "file": "logserver/server.go",
+  "old": "h < uint64(entries)",
+  "new": "h <= uint64(entries)"
+ },
+ {
+  "name": "witness: short page is refused",
+  "file": "witness/witness.go",
+  "old": "len(got) < pageSize",
+  "new": "false"
+ },
+ {
+  "name": "witness: state file must be private",
+  "file": "witness/witness.go",
+  "old": "fi.Mode().Perm()&0o077 != 0",
+  "new": "false"
+ },
+ {
+  "name": "review: bundle blob size cap",
+  "file": "review/bundle.go",
+  "old": "fi.Size() > maxBlobBytes",
+  "new": "false"
+ },
+ {
+  "name": "witness: whole seen-prefix comparison removed",
+  "file": "witness/witness.go",
+  "old": "if ledger.LogRoot(entries[:w.seen.Size]) != root || entries[w.seen.Size-1].Hash() != head {",
+  "new": "if false && (ledger.LogRoot(entries[:w.seen.Size]) != root || entries[w.seen.Size-1].Hash() != head) {"
+ }
+]

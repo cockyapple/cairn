@@ -2,7 +2,7 @@
 GO_IMAGE ?= golang:1.24-alpine
 RUN = docker run --rm -v $(CURDIR):/src -w /src -e CGO_ENABLED=0 -e GOFLAGS=-mod=readonly $(GO_IMAGE)
 
-.PHONY: test vet fmt vectors loc
+.PHONY: test vet fmt vectors loc mutate
 test:
 	$(RUN) go test -count=1 ./...
 vet:
@@ -14,3 +14,6 @@ vectors:
 # The verifier must stay small enough to read in an afternoon (budget: 1,500 lines).
 loc:
 	@ls wire/*.go ledger/*.go | grep -v _test.go | xargs cat | wc -l
+# Checks that the tests can fail: see docs/EVIDENCE.md. Slow; not part of `make test`.
+mutate:
+	$(RUN) go run ./internal/mutate
