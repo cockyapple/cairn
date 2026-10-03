@@ -39,7 +39,7 @@ jobs:
           go-version: "1.24"
       - name: fuzz every target for 20 seconds
         run: |
-          for t in ledger:FuzzDecodeEntry ledger:FuzzDecodeSignedCheckpoint ledger:FuzzDecodeTrustConfig ledger:FuzzDecodePayloads ledger:FuzzProofs logserver:FuzzAppend note:FuzzVerify; do
+          for t in ledger:FuzzDecodeEntry ledger:FuzzDecodeSignedCheckpoint ledger:FuzzDecodeTrustConfig ledger:FuzzDecodePayloads ledger:FuzzProofs logserver:FuzzAppend note:FuzzVerify governance:FuzzDecodeGrant; do
             go test -run '^$' -fuzz "^${t#*:}\$" -fuzztime 20s -parallel 2 "./${t%%:*}"
           done
   mutation:

@@ -1,5 +1,5 @@
 # go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 2 minutes)
-# base commit 36193f72cfa0692c2c188720a666d97a789d48c5 plus the uncommitted changes that add this file
+# base commit c8c14c89066e5b2df86b952b7da595d9a37e9f10 plus the uncommitted changes that add this file
 
 go version go1.24.13 linux/amd64
 killed     witness      witness: last-entry identity
@@ -45,5 +45,35 @@ killed     witness      witness: short page is refused
 killed     witness      witness: state file must be private
 killed     review       review: bundle blob size cap
 killed     witness      witness: whole seen-prefix comparison removed
+killed     governance   grant: names must ascend
+killed     governance   grant: name length cap
+killed     governance   grant: name count cap
+killed     governance   grant: unknown version accepted
+killed     governance   grant: trailing bytes accepted
+killed     governance   grant: subset always true
+killed     governance   grant: budget may grow
+killed     governance   grant: expiry may grow
+killed     governance   grant: fewer tools not counted
+killed     governance   grant: fewer hosts not counted
+killed     governance   grant: smaller budget not counted
+killed     governance   grant: earlier expiry not counted
+killed     governance   grant: target must be lowercase
+killed     governance   grant: target must be 64 digits
+killed     governance   grant: proposal tier floor
+killed     governance   grant: proposal for a revoked key
+killed     governance   grant: proposal for a non-agent
+killed     governance   grant: delegation before effective
+killed     governance   grant: delegation after expiry
+killed     governance   grant: delegation needs a grant
+killed     governance   grant: delegation to a revoked key
+killed     governance   grant: child already granted
+killed     governance   grant: child must be an agent
+killed     governance   grant: delegation narrowing check
+equivalent governance   grant: self delegation
+           a key that delegates to itself already holds a grant (it passed the parent check), so the 'already holds a grant' rule below refuses it with the same code; the case exists only for a clearer message
+killed     governance   grant: revoke does not cascade
+killed     governance   governance: revoke does not withdraw
+killed     governance   governance: activation of a grant for a revoked key
+killed     governance   governance: delegation not checked
 
-40 mutants: 3 equivalent 37 killed
+69 mutants: 4 equivalent 65 killed

@@ -16,7 +16,7 @@ var roles = map[string]ledger.Role{
 	"val": ledger.RoleValidator, "wit": ledger.RoleWitness,
 	"rev1": ledger.RoleReviewer, "rev2": ledger.RoleReviewer, "rev3": ledger.RoleReviewer,
 	"sec": ledger.RoleSecurityReviewer, "prop": ledger.RoleProposer,
-	"agent": ledger.RoleAgent, "agent2": ledger.RoleAgent,
+	"agent": ledger.RoleAgent, "agent2": ledger.RoleAgent, "agent3": ledger.RoleAgent,
 }
 
 type world struct {
@@ -401,6 +401,15 @@ func TestViolations(t *testing.T) {
 		}},
 		{"only agent and proposer keys can be revoked", CodeBadRevocation, func(w *world) { w.revoke("sec", "rev1") }},
 		{"a revoked key cannot write", CodeRevokedKey, func(w *world) { w.revoke("val", "agent"); w.action("agent", "spend", 1, 0, zero) }},
+		{"a grant for a key that is not an agent", CodeBadGrant, func(w *world) { w.proposeGrant(ledger.T3, "rev1", mustEnc(t, rootGrant)) }},
+		{"delegating to yourself", CodeBadDelegation, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.delegate("agent", "agent", Grant{})
+		}},
+		{"a delegation that does not narrow", CodeNotNarrower, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.delegate("agent", "agent2", rootGrant)
+		}},
 		{"a malformed payload keeps the ledger code", ledger.CodeBadPayload, func(w *world) {
 			w.put(ledger.KindActivate, "val", []byte("short"))
 		}},

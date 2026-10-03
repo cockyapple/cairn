@@ -33,6 +33,9 @@ const (
 	CodeFutureEntry           = "future_entry"
 	CodeBadRevocation         = "bad_revocation"
 	CodeRevokedKey            = "revoked_key"
+	CodeBadGrant              = "bad_grant"
+	CodeBadDelegation         = "bad_delegation"
+	CodeNotNarrower           = "delegation_not_narrower"
 )
 
 // AllCodes lists every governance code; a test requires SPEC section 10 to match.
@@ -43,6 +46,7 @@ var AllCodes = []string{
 	CodeDelayTooShort, CodeDelayNotElapsed, CodeFrozen, CodeBadFreezeState,
 	CodeBadValidatorsChange, CodeBadActionChain, CodeBadActionCompletion,
 	CodeTierTooLow, CodeFutureEntry, CodeBadRevocation, CodeRevokedKey,
+	CodeBadGrant, CodeBadDelegation, CodeNotNarrower,
 }
 
 // Error is a governance violation at a specific entry.

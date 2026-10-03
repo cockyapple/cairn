@@ -115,6 +115,7 @@ type State struct {
 	OpenIntents []OpenIntent
 	Completed   int
 	Revocations []Revocation // in log order
+	Grants      []GrantInfo  // grants in force after the last entry, oldest first
 }
 
 // Trust returns the configuration in force after the last entry.
@@ -155,6 +156,8 @@ type proposalRec struct {
 	time      uint64
 	epoch     uint64
 	p         ledger.Proposal
+	grantKey  [32]byte
+	grant     *Grant // set for a cairn/grant/ proposal
 	activated bool
 	actHeight uint64
 	effective uint64
@@ -184,6 +187,7 @@ type replayer struct {
 	agents    map[[32]byte]*agentRec
 	pending   []*proposalRec // activated validators-set changes not yet applied
 	revoked   map[[32]byte]bool
+	grants    map[[32]byte]*grantRec
 }
 
 // Replay verifies the chain (authenticity) and then every governance rule
@@ -199,6 +203,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		votes:     map[ledger.Hash]voteRec{},
 		agents:    map[[32]byte]*agentRec{},
 		revoked:   map[[32]byte]bool{},
+		grants:    map[[32]byte]*grantRec{},
 	}
 	for i := range entries {
 		e := &entries[i]
@@ -222,6 +227,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 	for _, ag := range r.agents {
 		r.st.OpenIntents = append(r.st.OpenIntents, ag.open...)
 	}
+	r.st.Grants = r.grantInfos()
 	sort.Slice(r.st.OpenIntents, func(i, j int) bool { return r.st.OpenIntents[i].Height < r.st.OpenIntents[j].Height })
 	final := r.epoch()
 	for _, p := range r.order {
@@ -247,15 +253,19 @@ func (r *replayer) trust() *ledger.TrustConfig { return &r.st.Epochs[len(r.st.Ep
 func (r *replayer) epoch() uint64 { return r.trust().Epoch }
 
 func (r *replayer) payload(e *ledger.Entry) ([]byte, error) {
+	return r.blob(e.Height, e.PayloadHash, "payload")
+}
+
+func (r *replayer) blob(height uint64, h ledger.Hash, what string) ([]byte, error) {
 	if r.blobs == nil {
-		return nil, fail(e.Height, CodeBadBlob, "no blob resolver supplied")
+		return nil, fail(height, CodeBadBlob, "no blob resolver supplied")
 	}
-	b, ok := r.blobs.Get(e.PayloadHash)
+	b, ok := r.blobs.Get(h)
 	if !ok {
-		return nil, fail(e.Height, CodeBadBlob, "payload blob is not available")
+		return nil, fail(height, CodeBadBlob, what+" blob is not available")
 	}
-	if ledger.BlobHash(b) != e.PayloadHash {
-		return nil, fail(e.Height, CodeBadBlob, "payload blob does not match its hash")
+	if ledger.BlobHash(b) != h {
+		return nil, fail(height, CodeBadBlob, what+" blob does not match its hash")
 	}
 	return b, nil
 }
@@ -332,12 +342,21 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 			return fail(e.Height, CodeReservedTarget, "this target can only change at tier T4")
 		}
 	default:
-		if strings.HasPrefix(p.Target, "cairn/") {
+		if strings.HasPrefix(p.Target, "cairn/") && !strings.HasPrefix(p.Target, GrantTargetPrefix) {
 			return fail(e.Height, CodeReservedTarget, "the cairn/ target namespace is reserved")
 		}
 	}
+	var gkey [32]byte
+	var grant *Grant
+	if strings.HasPrefix(p.Target, GrantTargetPrefix) {
+		k, g, err := r.grantProposal(e, p)
+		if err != nil {
+			return err
+		}
+		gkey, grant = k, &g
+	}
 	h := e.Hash()
-	rec := &proposalRec{hash: h, height: e.Height, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, voters: map[[32]byte]bool{}}
+	rec := &proposalRec{hash: h, height: e.Height, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, grantKey: gkey, grant: grant, voters: map[[32]byte]bool{}}
 	r.proposals[h] = rec
 	r.order = append(r.order, rec)
 	return nil
@@ -429,6 +448,12 @@ func (r *replayer) activate(e *ledger.Entry, b []byte) error {
 	if prop.p.Target == targetValidators {
 		r.pending = append(r.pending, prop)
 	}
+	if prop.grant != nil {
+		if r.revoked[prop.grantKey] {
+			return fail(e.Height, CodeRevokedKey, "the key this grant is for has been revoked")
+		}
+		r.grants[prop.grantKey] = &grantRec{g: *prop.grant, height: e.Height, effective: a.EffectiveAfter}
+	}
 	return nil
 }
 
@@ -450,6 +475,11 @@ func (r *replayer) action(e *ledger.Entry, b []byte) error {
 	}
 	h := e.Hash()
 	if a.ResultHash == (ledger.Hash{}) {
+		if a.ActionType == ActionDelegate {
+			if err := r.delegate(e, a); err != nil {
+				return err
+			}
+		}
 		oi := OpenIntent{Agent: e.Author, Height: e.Height, Hash: h, ActionType: a.ActionType, ArgsHash: a.ArgsHash, Time: e.Time}
 		ag.open = append(ag.open, oi)
 	} else {
@@ -568,6 +598,7 @@ func (r *replayer) revoke(e *ledger.Entry, b []byte) error {
 		return fail(e.Height, CodeBadRevocation, "the key is already revoked")
 	}
 	r.revoked[v.Key] = true
+	r.withdraw(v.Key)
 	r.st.Revocations = append(r.st.Revocations, Revocation{Key: v.Key, Role: role, Height: e.Height, By: e.Author, ReasonHash: v.ReasonHash})
 	return nil
 }

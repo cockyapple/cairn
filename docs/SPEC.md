@@ -137,8 +137,8 @@ whether the chain is *lawful*.
 
 The **governance** package (section 10) replays a verified chain and checks
 lawfulness: roles, approvals, delays, freeze, validator epochs and the ACTION
-chain. It enforces invariants I1 and I3, and keeps I7 as an auditable intent
-trail. It does **not** enforce I4, I5, I6, I8, I9, I11 or I12; section 10.5
+chain. It enforces invariants I1 and I3, I11 at delegation time, and keeps I7 as an auditable intent
+trail. It does **not** enforce I4, I5, I6, I8, I9 or I12, and I11 only for delegation; section 10.5
 says why. Do not claim more than that.
 
 ## 9. Test vectors
@@ -169,6 +169,10 @@ applied VALIDATORS entry). Payload blobs are required for every entry.
 | FREEZE (scope 1) | validator or security reviewer |
 | FREEZE (scope 2, lift) | validator |
 | REVOKE | validator or security reviewer |
+
+A PROPOSAL whose target is `cairn/grant/<hex>` and an ACTION of type
+`cairn/delegate` carry the capability rules of 10.3.2; they use the same authors
+as any other PROPOSAL and ACTION.
 
 A key holds exactly one role, so a proposer can never vote on its own proposal
 and an agent can never vote or activate (I1) by construction, not by an extra
@@ -239,6 +243,42 @@ otherwise stays valid until a T4 change clears its 14-day delay.
   refused, so the gap is visible.
 - REVOKE only removes authority. It cannot grant a role.
 
+### 10.3.2 Capability grants and delegation (I11)
+
+A **grant** says what one agent key may do. It is a canonical blob (all integers
+big-endian, strings as in section 3):
+
+```
+u8 version (1) | u32 n | n strings: tools | u32 m | m strings: hosts | u64 budget | u64 not_after
+```
+
+Each list is strictly ascending by byte order, with no empty and no duplicate name,
+at most 256 names of at most 256 bytes each. `budget` is an abstract unit count;
+`not_after` is a time, exclusive. `2^64-1` means unlimited and no expiry. A grant that
+does not re-encode to the bytes given is `bad_grant`.
+
+**Root grants.** A PROPOSAL with target `cairn/grant/<64 lowercase hex chars>`
+(the agent's public key) whose `diff_hash` is the hash of a grant blob. It needs
+tier T3 or T4 (`reserved_target`). The key must hold the agent role and not be
+revoked (`bad_grant`, `revoked_key`), and the blob must be supplied and decode
+(`bad_blob`, `bad_grant`). Activation goes through the ordinary vote, delay and
+freeze rules, and fails with `revoked_key` if the agent was revoked in the meantime.
+The grant takes effect at the activation's `effective_after`. A later root grant
+for the same key replaces the earlier one. Other targets under `cairn/` stay
+reserved.
+
+**Delegation.** An agent that holds a grant may pass a **strictly narrower** one to
+another agent. It writes an ACTION intent of type `cairn/delegate` whose `args_hash`
+is the hash of `child (32 bytes) | grant blob`. The replay rejects it as
+`bad_delegation` when the author holds no grant, the grant is not yet effective at
+the entry's time, the entry's time is at or past the grant's `not_after`, the child
+is the author, the child is not an agent, or the child already holds a grant;
+`revoked_key` when the child is revoked; and `delegation_not_narrower` unless the
+child's tools and hosts are subsets of the author's, its budget and `not_after` are
+no greater, and at least one of the four is strictly smaller. The child's grant takes
+effect at the entry's time. Revoking a key withdraws its grant and, recursively,
+every grant it delegated. `State.Grants` lists the grants in force.
+
 ### 10.4 ACTION: intent, then completion (ADR-13)
 
 An ACTION whose `result_hash` is zero is an **intent**. One with a non-zero
@@ -262,8 +302,12 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
   mechanical part; the semantic part is a reviewer duty.
 - **I5, I6, I8, I9, I12** concern the gatekeeper and the agent runtime
   (Phase 2 and later), not the log.
-- **I11 (delegation only narrows).** There is no wire format yet for capability
-  grants or delegation, so there is nothing to check. Defining one is open work.
+- **I11 (delegation only narrows)** is enforced at the moment of delegation
+  (10.3.2), and only there. The replay does not yet compare an agent's ACTIONs with
+  its grant (that is I2 and I6, with the gatekeeper), and it does not total the
+  budget an agent has spent, so `budget` is a ceiling on what may be handed down,
+  not yet a counter. Replacing a root grant with a smaller one does not shrink grants already
+  delegated from the old one; revoking the key does.
 - **Time.** Delays are measured on entry `time` values, which are claims. They
   are bounded by monotonicity and, in Stage A, by the sequencer refusing
   entries far from its own clock; a consumer that loads a change must compare
@@ -293,4 +337,5 @@ keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
 `already_activated`, `bad_vote_reference`, `blocked_by_vote`,
 `insufficient_approvals`, `delay_too_short`, `delay_not_elapsed`, `frozen`,
 `bad_freeze_state`, `bad_validators_change`, `bad_action_chain`,
-`bad_action_completion`, `tier_too_low`, `future_entry`, `bad_revocation`, `revoked_key`.
+`bad_action_completion`, `tier_too_low`, `future_entry`, `bad_revocation`, `revoked_key`,
+`bad_grant`, `bad_delegation`, `delegation_not_narrower`.

@@ -8,8 +8,8 @@ runs described here are in `docs/evidence/`.
 
 | File | Command | Result |
 |---|---|---|
-| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 241 top-level tests passed, 0 failed, 0 skipped; 98 subtests passed. Every package with tests reports `ok`. |
-| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about two minutes) | 40 mutants: 37 killed, 3 equivalent, 0 survived, 0 invalid. |
+| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 256 top-level tests passed, 0 failed, 0 skipped; 151 subtests passed. Every package with tests reports `ok`. |
+| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about two minutes) | 69 mutants: 65 killed, 4 equivalent, 0 survived, 0 invalid. |
 
 Both ran in the pinned `golang:1.24-alpine` image (Go 1.24.13). The race run needs cgo, so it
 installs `build-base` first. Each file records the commit it ran on. The runs were made on the
@@ -39,7 +39,7 @@ To reproduce:
     make mutate                        # in the pinned container
     go run ./internal/mutate -only witness:    # a subset, by name
 
-## The three equivalent mutants
+## The four equivalent mutants
 
 They are listed in `testdata/mutants.json` with their reasons. They are the part of this page
 most worth checking, because "equivalent" is a claim the author makes about their own gap.
@@ -53,16 +53,21 @@ most worth checking, because "equivalent" is a claim the author makes about thei
 - **witness: fetch empty page.** An empty page is also a short page, and the short-page check
   just below refuses it with the same error code. The branch exists to give a clearer message.
 
+- **grant: self delegation.** A key that delegates to itself already holds a grant (it had to,
+  to pass the parent check), so the "receiving key already holds a grant" rule just below
+  refuses it with the same code. The self check gives a clearer message.
+
 If you read these and think a test should exist anyway, you may be right: these are defence in
-depth, and a test that pins the message would kill the third. They are marked equivalent
+depth, and a test that pins the message would kill the third and fourth. They are marked equivalent
 because they do not change what the witness accepts or refuses.
 
 ## What the numbers do not show
 
-- **Forty mutants is a small sample.** They were written by hand, mostly against the witness
-  (32 of 40), because that is where the earlier audits found gaps. Packages with no entry in
+- **Sixty-nine mutants is a small sample.** They were written by hand, mostly against the witness
+  (32 of 69) and the new grant and delegation code (29), because that is where the earlier
+  audits found gaps and where the newest code is. Packages with no entry in
   the list, such as `ledger` and `wire`, have not been mutation tested by this tool at all. A
-  clean run says these 40 changes are noticed; it says nothing about changes nobody wrote.
+  clean run says these 69 changes are noticed; it says nothing about changes nobody wrote.
 - **The mutants are the author's own.** They were chosen by the same person who wrote the
   tests. A tool that generated mutants mechanically would be a stronger check. This is an
   honest start, not a mutation score.

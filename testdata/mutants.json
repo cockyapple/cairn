@@ -241,5 +241,180 @@
   "file": "witness/witness.go",
   "old": "if ledger.LogRoot(entries[:w.seen.Size]) != root || entries[w.seen.Size-1].Hash() != head {",
   "new": "if false && (ledger.LogRoot(entries[:w.seen.Size]) != root || entries[w.seen.Size-1].Hash() != head) {"
+ },
+ {
+  "name": "grant: names must ascend",
+  "file": "governance/grant.go",
+  "old": "names[i-1] >= n",
+  "new": "false"
+ },
+ {
+  "name": "grant: name length cap",
+  "file": "governance/grant.go",
+  "old": "n == \"\" || len(n) > maxGrantString",
+  "new": "false"
+ },
+ {
+  "name": "grant: name count cap",
+  "file": "governance/grant.go",
+  "old": "len(names) > maxGrantItems",
+  "new": "false"
+ },
+ {
+  "name": "grant: unknown version accepted",
+  "file": "governance/grant.go",
+  "old": "v != grantVersion",
+  "new": "false"
+ },
+ {
+  "name": "grant: trailing bytes accepted",
+  "file": "governance/grant.go",
+  "old": "if err := r.Done(); err != nil {\n\t\treturn Grant{}, fmt.Errorf(\"%w: %v\", ErrBadGrant, err)\n\t}\n\treturn g, nil",
+  "new": "return g, nil"
+ },
+ {
+  "name": "grant: subset always true",
+  "file": "governance/grant.go",
+  "old": "if !have[s] {",
+  "new": "if false && !have[s] {"
+ },
+ {
+  "name": "grant: budget may grow",
+  "file": "governance/grant.go",
+  "old": "g.Budget > parent.Budget",
+  "new": "false"
+ },
+ {
+  "name": "grant: expiry may grow",
+  "file": "governance/grant.go",
+  "old": "g.NotAfter > parent.NotAfter",
+  "new": "false"
+ },
+ {
+  "name": "grant: fewer tools not counted",
+  "file": "governance/grant.go",
+  "old": "len(g.Tools) < len(parent.Tools)",
+  "new": "false"
+ },
+ {
+  "name": "grant: fewer hosts not counted",
+  "file": "governance/grant.go",
+  "old": "len(g.Hosts) < len(parent.Hosts)",
+  "new": "false"
+ },
+ {
+  "name": "grant: smaller budget not counted",
+  "file": "governance/grant.go",
+  "old": "g.Budget < parent.Budget",
+  "new": "false"
+ },
+ {
+  "name": "grant: earlier expiry not counted",
+  "file": "governance/grant.go",
+  "old": "g.NotAfter < parent.NotAfter",
+  "new": "false"
+ },
+ {
+  "name": "grant: target must be lowercase",
+  "file": "governance/grant.go",
+  "old": "h != strings.ToLower(h)",
+  "new": "false"
+ },
+ {
+  "name": "grant: target must be 64 digits",
+  "file": "governance/grant.go",
+  "old": "len(h) != 64 ||",
+  "new": ""
+ },
+ {
+  "name": "grant: proposal tier floor",
+  "file": "governance/grant.go",
+  "old": "p.Tier < ledger.T3",
+  "new": "false"
+ },
+ {
+  "name": "grant: proposal for a revoked key",
+  "file": "governance/grant.go",
+  "old": "r.revoked[key]",
+  "new": "false"
+ },
+ {
+  "name": "grant: proposal for a non-agent",
+  "file": "governance/grant.go",
+  "old": "RoleOf(key); !held || role != ledger.RoleAgent",
+  "new": "RoleOf(key); !held || false && role != ledger.RoleAgent"
+ },
+ {
+  "name": "grant: delegation before effective",
+  "file": "governance/grant.go",
+  "old": "e.Time < parent.effective",
+  "new": "false"
+ },
+ {
+  "name": "grant: delegation after expiry",
+  "file": "governance/grant.go",
+  "old": "e.Time >= parent.g.NotAfter",
+  "new": "false"
+ },
+ {
+  "name": "grant: delegation needs a grant",
+  "file": "governance/grant.go",
+  "old": "parent == nil",
+  "new": "false"
+ },
+ {
+  "name": "grant: delegation to a revoked key",
+  "file": "governance/grant.go",
+  "old": "r.revoked[d.Child]",
+  "new": "false"
+ },
+ {
+  "name": "grant: child already granted",
+  "file": "governance/grant.go",
+  "old": "r.grants[d.Child] != nil",
+  "new": "false"
+ },
+ {
+  "name": "grant: child must be an agent",
+  "file": "governance/grant.go",
+  "old": "RoleOf(d.Child); !held || role != ledger.RoleAgent",
+  "new": "RoleOf(d.Child); !held || false && role != ledger.RoleAgent"
+ },
+ {
+  "name": "grant: delegation narrowing check",
+  "file": "governance/grant.go",
+  "old": "!d.Grant.StrictlyWithin(parent.g)",
+  "new": "false"
+ },
+ {
+  "name": "grant: self delegation",
+  "file": "governance/grant.go",
+  "old": "d.Child == e.Author",
+  "new": "false",
+  "equivalent": "a key that delegates to itself already holds a grant (it passed the parent check), so the 'already holds a grant' rule below refuses it with the same code; the case exists only for a clearer message"
+ },
+ {
+  "name": "grant: revoke does not cascade",
+  "file": "governance/grant.go",
+  "old": "*g.parent == k",
+  "new": "false"
+ },
+ {
+  "name": "governance: revoke does not withdraw",
+  "file": "governance/governance.go",
+  "old": "r.withdraw(v.Key)",
+  "new": "r.withdraw([32]byte{})"
+ },
+ {
+  "name": "governance: activation of a grant for a revoked key",
+  "file": "governance/governance.go",
+  "old": "if r.revoked[prop.grantKey] {",
+  "new": "if false {"
+ },
+ {
+  "name": "governance: delegation not checked",
+  "file": "governance/governance.go",
+  "old": "a.ActionType == ActionDelegate",
+  "new": "false"
  }
 ]
