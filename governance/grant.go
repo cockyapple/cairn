@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/cockyapple/cairn/ledger"
 	"github.com/cockyapple/cairn/wire"
@@ -47,8 +48,8 @@ func validNames(names []string) error {
 		return fmt.Errorf("%w: more than %d entries", ErrBadGrant, maxGrantItems)
 	}
 	for i, n := range names {
-		if n == "" || len(n) > maxGrantString {
-			return fmt.Errorf("%w: a name is empty or longer than %d bytes", ErrBadGrant, maxGrantString)
+		if n == "" || len(n) > maxGrantString || !utf8.ValidString(n) {
+			return fmt.Errorf("%w: a name is empty, not UTF-8 or longer than %d bytes", ErrBadGrant, maxGrantString)
 		}
 		if i > 0 && names[i-1] >= n {
 			return fmt.Errorf("%w: names must be strictly ascending", ErrBadGrant)
@@ -212,6 +213,7 @@ type grantRec struct {
 // withdraw removes the grant held by k and every grant derived from it.
 func (r *replayer) withdraw(k [32]byte) {
 	delete(r.grants, k)
+	delete(r.sched, k)
 	for c, g := range r.grants {
 		if g.parent != nil && *g.parent == k {
 			r.withdraw(c)
@@ -225,7 +227,7 @@ func (r *replayer) grantProposal(e *ledger.Entry, p ledger.Proposal) ([32]byte, 
 	var none Grant
 	key, ok := parseGrantTarget(p.Target)
 	if !ok {
-		return key, none, fail(e.Height, CodeBadGrant, "the target must be cairn/grant/ followed by 64 lowercase hex digits")
+		return key, none, fail(e.Height, CodeReservedTarget, "a grant target must be cairn/grant/ followed by 64 lowercase hex digits; other cairn/ targets are reserved")
 	}
 	if p.Tier < ledger.T3 {
 		return key, none, fail(e.Height, CodeReservedTarget, "a grant can only change at tier T3 or above")
@@ -261,9 +263,7 @@ func (r *replayer) delegate(e *ledger.Entry, a ledger.Action) error {
 	switch {
 	case parent == nil:
 		return fail(e.Height, CodeBadDelegation, "the delegating key holds no grant")
-	case e.Time < parent.effective:
-		return fail(e.Height, CodeBadDelegation, "the delegating key's grant is not yet in effect")
-	case e.Time >= parent.g.NotAfter:
+	case expired(parent.g, e.Time):
 		return fail(e.Height, CodeBadDelegation, "the delegating key's grant has expired")
 	case d.Child == e.Author:
 		return fail(e.Height, CodeBadDelegation, "a key cannot delegate to itself")
@@ -273,7 +273,7 @@ func (r *replayer) delegate(e *ledger.Entry, a ledger.Action) error {
 	if role, held := r.trust().RoleOf(d.Child); !held || role != ledger.RoleAgent {
 		return fail(e.Height, CodeBadDelegation, "the receiving key is not an agent in the epoch in force")
 	}
-	if r.grants[d.Child] != nil {
+	if c := r.grants[d.Child]; c != nil && !expired(c.g, e.Time) {
 		return fail(e.Height, CodeBadDelegation, "the receiving key already holds a grant")
 	}
 	if !d.Grant.StrictlyWithin(parent.g) {
@@ -284,9 +284,38 @@ func (r *replayer) delegate(e *ledger.Entry, a ledger.Action) error {
 	return nil
 }
 
-func (r *replayer) grantInfos() []GrantInfo {
+// expired reports whether g no longer holds at entry time t. NoExpiry never expires.
+func expired(g Grant, t uint64) bool { return g.NotAfter != NoExpiry && t >= g.NotAfter }
+
+// promote puts every root grant whose effective_after has come into force. A
+// later activation supersedes an earlier one, so promoting a grant also drops
+// every grant activated before it, even one that is not yet effective.
+func (r *replayer) promote(t uint64) {
+	for k, list := range r.sched {
+		best := -1
+		for i, g := range list {
+			if t >= g.effective {
+				best = i
+			}
+		}
+		if best < 0 {
+			continue
+		}
+		r.grants[k] = list[best]
+		if rest := list[best+1:]; len(rest) > 0 {
+			r.sched[k] = rest
+		} else {
+			delete(r.sched, k)
+		}
+	}
+}
+
+func (r *replayer) grantInfos(now uint64) []GrantInfo {
 	var out []GrantInfo
 	for k, g := range r.grants {
+		if expired(g.g, now) {
+			continue
+		}
 		out = append(out, GrantInfo{Agent: k, Grant: g.g, Height: g.height, EffectiveAfter: g.effective, DelegatedBy: g.parent})
 	}
 	sortGrantInfos(out)

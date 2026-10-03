@@ -1,5 +1,5 @@
 # go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 2 minutes)
-# base commit c8c14c89066e5b2df86b952b7da595d9a37e9f10 plus the uncommitted changes that add this file
+# base commit e0795f1d66ade4a84bdb3a90dc67819372b19eab plus the uncommitted changes that add this file
 
 go version go1.24.13 linux/amd64
 killed     witness      witness: last-entry identity
@@ -75,5 +75,15 @@ killed     governance   grant: revoke does not cascade
 killed     governance   governance: revoke does not withdraw
 killed     governance   governance: activation of a grant for a revoked key
 killed     governance   governance: delegation not checked
+killed     governance   grant: an expired child still counts as holding a grant
+killed     governance   grant: no expiry expires
+killed     governance   grant: expired grants listed
+killed     governance   grant: the earliest due activation wins
+killed     governance   grant: a revoked key keeps its scheduled grant
+killed     governance   grant: names need not be UTF-8
+killed     governance   grant: malformed target is bad_grant
+killed     governance   governance: validators change takes the last matching proposal
+killed     governance   governance: skew check overflows
+killed     governance   governance: skew check underflows
 
-69 mutants: 4 equivalent 65 killed
+79 mutants: 4 equivalent 75 killed

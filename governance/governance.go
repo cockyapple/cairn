@@ -188,6 +188,7 @@ type replayer struct {
 	pending   []*proposalRec // activated validators-set changes not yet applied
 	revoked   map[[32]byte]bool
 	grants    map[[32]byte]*grantRec
+	sched     map[[32]byte][]*grantRec // activated root grants not yet effective, in activation order
 }
 
 // Replay verifies the chain (authenticity) and then every governance rule
@@ -204,15 +205,17 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		agents:    map[[32]byte]*agentRec{},
 		revoked:   map[[32]byte]bool{},
 		grants:    map[[32]byte]*grantRec{},
+		sched:     map[[32]byte][]*grantRec{},
 	}
 	for i := range entries {
 		e := &entries[i]
 		if i > 0 && e.Time < entries[i-1].Time {
 			return nil, fail(e.Height, CodeTimeRegression, "entry time is earlier than the previous entry")
 		}
-		if opt.Now != 0 && e.Time > opt.Now+opt.MaxSkew {
+		if opt.Now != 0 && e.Time > opt.Now && e.Time-opt.Now > opt.MaxSkew {
 			return nil, fail(e.Height, CodeFutureEntry, "entry time is later than the verifier's clock allows")
 		}
+		r.promote(e.Time)
 		var err error
 		if i == 0 {
 			err = r.genesis(e, opt)
@@ -227,7 +230,9 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 	for _, ag := range r.agents {
 		r.st.OpenIntents = append(r.st.OpenIntents, ag.open...)
 	}
-	r.st.Grants = r.grantInfos()
+	last := entries[len(entries)-1].Time
+	r.promote(last)
+	r.st.Grants = r.grantInfos(last)
 	sort.Slice(r.st.OpenIntents, func(i, j int) bool { return r.st.OpenIntents[i].Height < r.st.OpenIntents[j].Height })
 	final := r.epoch()
 	for _, p := range r.order {
@@ -452,7 +457,7 @@ func (r *replayer) activate(e *ledger.Entry, b []byte) error {
 		if r.revoked[prop.grantKey] {
 			return fail(e.Height, CodeRevokedKey, "the key this grant is for has been revoked")
 		}
-		r.grants[prop.grantKey] = &grantRec{g: *prop.grant, height: e.Height, effective: a.EffectiveAfter}
+		r.sched[prop.grantKey] = append(r.sched[prop.grantKey], &grantRec{g: *prop.grant, height: e.Height, effective: a.EffectiveAfter})
 	}
 	return nil
 }
@@ -541,17 +546,17 @@ func (r *replayer) validators(e *ledger.Entry, b []byte) error {
 		return fail(e.Height, CodeFrozen, "the validator set cannot change during a freeze")
 	}
 	want := ledger.BlobHash(b)
-	var auth *proposalRec
+	matched, ready := false, false
 	for _, p := range r.pending {
 		if p.p.DiffHash == want {
-			auth = p
-			break
+			matched = true
+			ready = ready || e.Time >= p.effective
 		}
 	}
-	if auth == nil {
+	if !matched {
 		return fail(e.Height, CodeBadValidatorsChange, "no activated T4 proposal authorises exactly this configuration")
 	}
-	if e.Time < auth.effective {
+	if !ready {
 		return fail(e.Height, CodeDelayNotElapsed, "the validator change is not yet effective")
 	}
 	r.pending = nil

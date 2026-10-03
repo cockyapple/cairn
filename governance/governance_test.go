@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"sort"
 	"testing"
 
@@ -366,6 +367,14 @@ func TestViolations(t *testing.T) {
 			w.activate("val", ph, pt+14*day, votes...)
 			w.put(ledger.KindValidators, "val", next.Encode())
 		}},
+		{"a validators change voids the other activated proposals", CodeBadValidatorsChange, func(w *world) {
+			one, two := trustConfig(1, "rev4"), trustConfig(2, "rev4")
+			w.approveValidators(one, 14*day)
+			w.approveValidators(two, 14*day)
+			w.now += 15 * day
+			w.put(ledger.KindValidators, "val", one.Encode())
+			w.put(ledger.KindValidators, "val", two.Encode())
+		}},
 		{"validators epoch skips", CodeWrongEpoch, func(w *world) {
 			tc := trustConfig(2)
 			w.put(ledger.KindValidators, "val", tc.Encode())
@@ -527,5 +536,40 @@ func TestVerifierClockRejectsFutureEntries(t *testing.T) {
 	}
 	if _, err := Replay(w.entries, w.blobs, Options{Now: w.now, MaxSkew: 300}); err != nil {
 		t.Fatalf("clock caught up: %v", err)
+	}
+}
+
+func (w *world) approveValidators(tc ledger.TrustConfig, effectiveIn uint64) {
+	p := ledger.Proposal{Tier: ledger.T4, Target: targetValidators, DiffHash: ledger.BlobHash(tc.Encode())}
+	ph := w.put(ledger.KindProposal, "prop", p.Encode())
+	pt := w.timeOfLast()
+	votes := []ledger.Hash{w.vote("sec", ph, ledger.VerdictApprove), w.vote("rev1", ph, ledger.VerdictApprove), w.vote("rev2", ph, ledger.VerdictApprove)}
+	w.activate("val", ph, pt+effectiveIn, votes...)
+}
+
+func TestValidatorsChangeUsesAnyProposalWhoseDelayHasElapsed(t *testing.T) {
+	for _, delays := range [][2]uint64{{60 * day, 14 * day}, {14 * day, 60 * day}} {
+		w := newWorld(t)
+		next := trustConfig(1, "rev4")
+		w.approveValidators(next, delays[0])
+		w.approveValidators(next, delays[1])
+		w.now += 15 * day
+		w.put(ledger.KindValidators, "val", next.Encode())
+		st, err := w.replay()
+		if err != nil || st.Trust().Epoch != 1 {
+			t.Fatalf("a proposal whose delay has not elapsed must not hide one whose delay has, in either order: %v", err)
+		}
+	}
+}
+
+func TestReplayClockCheckDoesNotOverflow(t *testing.T) {
+	w := newWorld(t)
+	w.now = math.MaxUint64 - 5
+	w.propose("agent", ledger.T0, "limits/spend")
+	if _, err := Replay(w.entries, w.blobs, Options{Now: math.MaxUint64 - 5, MaxSkew: 10}); err != nil {
+		t.Fatalf("an entry stamped at the verifier's clock is not in the future: %v", err)
+	}
+	if _, err := Replay(w.entries, w.blobs, Options{Now: 2_000_000, MaxSkew: 10}); ErrCode(err) != CodeFutureEntry {
+		t.Fatalf("an entry far ahead of the clock is: %v", err)
 	}
 }

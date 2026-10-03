@@ -2,6 +2,8 @@ package governance
 
 import (
 	"bytes"
+	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -161,9 +163,9 @@ func TestDelegationRules(t *testing.T) {
 		{"delegating to a key that is not an agent", func(w *world) { w.delegate("agent", "prop", Grant{}) }, CodeBadDelegation},
 		{"delegating to a key with no role", func(w *world) { w.delegate("agent", "stranger", Grant{}) }, CodeBadDelegation},
 		{"delegating to a key that already holds a grant", func(w *world) {
-			w.delegate("agent", "agent2", Grant{})
+			w.delegate("agent", "agent2", Grant{NotAfter: 8_000_000})
 			w.put(ledger.KindAction, "agent", (&ledger.Action{ActionType: "x", ArgsHash: ledger.Hash{1}, PrevActionHash: w.lastActionOf("agent")}).Encode())
-			w.delegate("agent", "agent2", Grant{Budget: 1})
+			w.delegate("agent", "agent2", Grant{Budget: 1, NotAfter: 8_000_000})
 		}, CodeBadDelegation},
 		{"delegating to a revoked key", func(w *world) {
 			w.revoke("sec", "agent2")
@@ -248,11 +250,11 @@ func TestGrantProposalRules(t *testing.T) {
 			w.revoke("sec", "agent")
 			w.proposeGrant(ledger.T3, "agent", good)
 		}, CodeRevokedKey},
-		{"uppercase hex", func(w *world) { target(GrantTargetPrefix + strings.ToUpper(hexKey[len(GrantTargetPrefix):]))(w) }, CodeBadGrant},
-		{"a short key", func(w *world) { target(hexKey[:len(hexKey)-2])(w) }, CodeBadGrant},
-		{"a long key", func(w *world) { target(hexKey + "00")(w) }, CodeBadGrant},
-		{"not hex", func(w *world) { target(GrantTargetPrefix + strings.Repeat("g", 64))(w) }, CodeBadGrant},
-		{"no key at all", func(w *world) { target(GrantTargetPrefix)(w) }, CodeBadGrant},
+		{"uppercase hex", func(w *world) { target(GrantTargetPrefix + strings.ToUpper(hexKey[len(GrantTargetPrefix):]))(w) }, CodeReservedTarget},
+		{"a short key", func(w *world) { target(hexKey[:len(hexKey)-2])(w) }, CodeReservedTarget},
+		{"a long key", func(w *world) { target(hexKey + "00")(w) }, CodeReservedTarget},
+		{"not hex", func(w *world) { target(GrantTargetPrefix + strings.Repeat("g", 64))(w) }, CodeReservedTarget},
+		{"no key at all", func(w *world) { target(GrantTargetPrefix)(w) }, CodeReservedTarget},
 		{"a grant that is not canonical", func(w *world) {
 			b := mustEnc(t, Grant{Tools: []string{"a", "b"}})
 			b = bytes.Replace(b, []byte("\x01a\x00\x00\x00\x01b"), []byte("\x01b\x00\x00\x00\x01a"), 1)
@@ -335,6 +337,7 @@ func TestANewRootGrantReplacesTheOld(t *testing.T) {
 	w.grantFor("agent", rootGrant)
 	smaller := narrower(func(g *Grant) { g.Budget = 7 })
 	w.grantFor("agent", smaller)
+	w.propose("prop", ledger.T0, "limits/spend")
 	st, err := w.replay()
 	if err != nil || len(st.Grants) != 1 || st.Grants[0].Grant.Budget != 7 {
 		t.Fatalf("%v %+v", err, st.Grants)
@@ -390,7 +393,7 @@ func TestGrantEncoding(t *testing.T) {
 func manyNames(n int) []string {
 	out := make([]string, n)
 	for i := range out {
-		out[i] = string([]byte{byte(i >> 8), byte(i)}) + "n"
+		out[i] = fmt.Sprintf("n%04x", i)
 	}
 	return out
 }
@@ -455,6 +458,7 @@ func TestReplacingARootGrantDoesNotShrinkWhatWasDelegated(t *testing.T) {
 	w.grantFor("agent", rootGrant)
 	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.Budget = 500 }))
 	w.grantFor("agent", narrower(func(g *Grant) { g.Budget = 10 }))
+	w.propose("prop", ledger.T0, "limits/spend")
 	st, err := w.replay()
 	if err != nil || len(st.Grants) != 2 {
 		t.Fatalf("%v %+v", err, st.Grants)
@@ -463,5 +467,98 @@ func TestReplacingARootGrantDoesNotShrinkWhatWasDelegated(t *testing.T) {
 		if g.Agent == pubOf("agent2") && g.Grant.Budget != 500 {
 			t.Fatalf("%+v", g)
 		}
+	}
+}
+
+func (w *world) approveGrant(agent string, g Grant, effectiveIn uint64) {
+	h, pt := w.proposeGrant(ledger.T3, agent, mustEnc(w.t, g))
+	var votes []ledger.Hash
+	for _, v := range []string{"sec", "rev1", "rev2"} {
+		votes = append(votes, w.vote(v, h, ledger.VerdictApprove))
+	}
+	w.activate("val", h, pt+effectiveIn, votes...)
+}
+
+func TestARootGrantReplacesTheOldOnlyWhenItTakesEffect(t *testing.T) {
+	w := newWorld(t)
+	w.grantFor("agent", rootGrant)
+	w.approveGrant("agent", narrower(func(g *Grant) { g.Budget = 7 }), 7*day)
+	pending := w.now
+	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.Budget = 500 }))
+	st, err := w.replay()
+	if err != nil {
+		t.Fatalf("a delegation inside the new grant's delay is judged against the old grant: %v", err)
+	}
+	for _, g := range st.Grants {
+		if g.Agent == pubOf("agent") && g.Grant.Budget != 1000 {
+			t.Fatalf("the scheduled grant is already listed as in force: %+v", g)
+		}
+	}
+	w.now = pending + 7*day
+	w.delegate("agent", "agent3", narrower(func(g *Grant) { g.Budget = 500 }))
+	if _, err := w.replay(); ErrCode(err) != CodeNotNarrower {
+		t.Fatalf("once the new grant is effective it is the one that counts: %v", err)
+	}
+}
+
+func TestALaterActivationSupersedesAnEarlierOne(t *testing.T) {
+	w := newWorld(t)
+	w.grantFor("agent", rootGrant)
+	w.approveGrant("agent", narrower(func(g *Grant) { g.Budget = 7 }), 30*day)
+	w.approveGrant("agent", narrower(func(g *Grant) { g.Budget = 8 }), 8*day)
+	w.now += 31 * day
+	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.Budget = 8; g.Tools = g.Tools[:1] }))
+	st, err := w.replay()
+	if err != nil {
+		t.Fatalf("the grant activated last must win even though the other took effect later: %v", err)
+	}
+	for _, g := range st.Grants {
+		if g.Agent == pubOf("agent") && g.Grant.Budget != 8 {
+			t.Fatalf("%+v", g)
+		}
+	}
+}
+
+func TestAnExpiredGrantIsNotHeld(t *testing.T) {
+	w := newWorld(t)
+	w.grantFor("agent", rootGrant)
+	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.NotAfter = w.now + 100 }))
+	w.now += 1000
+	w.propose("prop", ledger.T0, "limits/spend")
+	st, err := w.replay()
+	if err != nil || len(st.Grants) != 1 || st.Grants[0].Agent != pubOf("agent") {
+		t.Fatalf("an expired grant is not in force: %v %+v", err, st.Grants)
+	}
+	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.NotAfter = 5_000_000 }))
+	if _, err := w.replay(); err != nil {
+		t.Fatalf("a key whose grant expired can be given a new one: %v", err)
+	}
+}
+
+func TestNoExpiryNeverExpires(t *testing.T) {
+	w := newWorld(t)
+	w.grantFor("agent", narrower(func(g *Grant) { g.NotAfter = NoExpiry }))
+	w.now = math.MaxUint64
+	w.delegate("agent", "agent2", narrower(func(g *Grant) { g.Budget = 5; g.NotAfter = NoExpiry }))
+	if _, err := w.replay(); err != nil {
+		t.Fatalf("a grant with no expiry holds at the largest entry time: %v", err)
+	}
+}
+
+func TestGrantNamesMustBeUTF8(t *testing.T) {
+	if _, err := (Grant{Tools: []string{"\xff"}, Budget: 1, NotAfter: NoExpiry}).Encode(); err == nil {
+		t.Fatal("Encode accepted a name that Decode would refuse")
+	}
+}
+
+func TestRevokedAgentNeverGetsItsScheduledGrant(t *testing.T) {
+	w := newWorld(t)
+	w.approveGrant("agent", rootGrant, 7*day)
+	w.revoke("sec", "agent")
+	w.now += 8 * day
+	w.propose("prop", ledger.T0, "limits/spend")
+	st, err := w.replay()
+	if err != nil || len(st.Grants) != 0 {
+		t.Fatalf("a key revoked before its grant took effect must never hold it: %v %+v", err, st.Grants)
 	}
 }

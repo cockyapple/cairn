@@ -347,13 +347,13 @@
  {
   "name": "grant: delegation before effective",
   "file": "governance/grant.go",
-  "old": "e.Time < parent.effective",
-  "new": "false"
+  "old": "if t >= g.effective {",
+  "new": "if true || t >= g.effective {"
  },
  {
   "name": "grant: delegation after expiry",
   "file": "governance/grant.go",
-  "old": "e.Time >= parent.g.NotAfter",
+  "old": "expired(parent.g, e.Time)",
   "new": "false"
  },
  {
@@ -371,8 +371,8 @@
  {
   "name": "grant: child already granted",
   "file": "governance/grant.go",
-  "old": "r.grants[d.Child] != nil",
-  "new": "false"
+  "old": "c != nil && !expired(c.g, e.Time)",
+  "new": "c != nil && false"
  },
  {
   "name": "grant: child must be an agent",
@@ -416,5 +416,65 @@
   "file": "governance/governance.go",
   "old": "a.ActionType == ActionDelegate",
   "new": "false"
+ },
+ {
+  "name": "grant: an expired child still counts as holding a grant",
+  "file": "governance/grant.go",
+  "old": "c != nil && !expired(c.g, e.Time)",
+  "new": "c != nil"
+ },
+ {
+  "name": "grant: no expiry expires",
+  "file": "governance/grant.go",
+  "old": "g.NotAfter != NoExpiry && t >= g.NotAfter",
+  "new": "t >= g.NotAfter"
+ },
+ {
+  "name": "grant: expired grants listed",
+  "file": "governance/grant.go",
+  "old": "if expired(g.g, now) {",
+  "new": "if false {"
+ },
+ {
+  "name": "grant: the earliest due activation wins",
+  "file": "governance/grant.go",
+  "old": "best = i",
+  "new": "if best < 0 {\n\t\t\t\t\tbest = i\n\t\t\t\t}"
+ },
+ {
+  "name": "grant: a revoked key keeps its scheduled grant",
+  "file": "governance/grant.go",
+  "old": "delete(r.grants, k)\n\tdelete(r.sched, k)",
+  "new": "delete(r.grants, k)"
+ },
+ {
+  "name": "grant: names need not be UTF-8",
+  "file": "governance/grant.go",
+  "old": " || !utf8.ValidString(n)",
+  "new": " || !utf8.ValidString(n) && false"
+ },
+ {
+  "name": "grant: malformed target is bad_grant",
+  "file": "governance/grant.go",
+  "old": "CodeReservedTarget, \"a grant target must",
+  "new": "CodeBadGrant, \"a grant target must"
+ },
+ {
+  "name": "governance: validators change takes the last matching proposal",
+  "file": "governance/governance.go",
+  "old": "ready = ready || e.Time >= p.effective",
+  "new": "ready = e.Time >= p.effective"
+ },
+ {
+  "name": "governance: skew check overflows",
+  "file": "governance/governance.go",
+  "old": "e.Time > opt.Now && e.Time-opt.Now > opt.MaxSkew",
+  "new": "e.Time > opt.Now+opt.MaxSkew"
+ },
+ {
+  "name": "governance: skew check underflows",
+  "file": "governance/governance.go",
+  "old": "e.Time > opt.Now && e.Time-opt.Now > opt.MaxSkew",
+  "new": "e.Time-opt.Now > opt.MaxSkew"
  }
 ]

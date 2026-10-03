@@ -212,7 +212,11 @@ check.
 - A VALIDATORS entry must carry epoch current + 1 and a TrustConfig whose
   encoding hashes (plain SHA-256) to the `diff_hash` of an activated, unused
   `cairn/validators` proposal (`bad_validators_change`), and its own `time` must
-  not precede that activation's `effective_after` (`delay_not_elapsed`).
+  not precede that activation's `effective_after` (`delay_not_elapsed`). If several
+  activated proposals carry that same diff, any one whose delay has elapsed will do.
+  Applying the entry uses up every activated validators proposal, not only the one it
+  matched: they belong to the epoch that just ended, so a further change needs a new
+  proposal (`bad_validators_change`).
 - A checkpoint of size n is judged by the TrustConfig in force after entry n-1
   has been applied; a checkpoint that covers a VALIDATORS entry is therefore
   signed by the **new** set.
@@ -254,7 +258,8 @@ u8 version (1) | u32 n | n strings: tools | u32 m | m strings: hosts | u64 budge
 
 Each list is strictly ascending by byte order, with no empty and no duplicate name,
 at most 256 names of at most 256 bytes each. `budget` is an abstract unit count;
-`not_after` is a time, exclusive. `2^64-1` means unlimited and no expiry. A grant that
+`not_after` is a time, exclusive. `2^64-1` means unlimited and, for `not_after`, no expiry: such a grant never
+expires, whatever the entry time. A grant that
 does not re-encode to the bytes given is `bad_grant`.
 
 **Root grants.** A PROPOSAL with target `cairn/grant/<64 lowercase hex chars>`
@@ -263,21 +268,27 @@ tier T3 or T4 (`reserved_target`). The key must hold the agent role and not be
 revoked (`bad_grant`, `revoked_key`), and the blob must be supplied and decode
 (`bad_blob`, `bad_grant`). Activation goes through the ordinary vote, delay and
 freeze rules, and fails with `revoked_key` if the agent was revoked in the meantime.
-The grant takes effect at the activation's `effective_after`. A later root grant
-for the same key replaces the earlier one. Other targets under `cairn/` stay
-reserved.
+The grant takes effect at the activation's `effective_after`; until then the key's
+earlier grant, if any, stays in force. A root grant that takes effect replaces the
+grant the key held, and a grant activated later supersedes one activated earlier even
+if the earlier one would have taken effect after it. A target that starts with
+`cairn/grant/` but is not followed by exactly 64 lowercase hex digits is a reserved
+target (`reserved_target`), like every other `cairn/` target. Names in a grant must be
+valid UTF-8.
 
 **Delegation.** An agent that holds a grant may pass a **strictly narrower** one to
 another agent. It writes an ACTION intent of type `cairn/delegate` whose `args_hash`
 is the hash of `child (32 bytes) | grant blob`. The replay rejects it as
 `bad_delegation` when the author holds no grant, the grant is not yet effective at
 the entry's time, the entry's time is at or past the grant's `not_after`, the child
-is the author, the child is not an agent, or the child already holds a grant;
+is the author, the child is not an agent, or the child already holds a grant that has
+not expired;
 `revoked_key` when the child is revoked; and `delegation_not_narrower` unless the
 child's tools and hosts are subsets of the author's, its budget and `not_after` are
 no greater, and at least one of the four is strictly smaller. The child's grant takes
 effect at the entry's time. Revoking a key withdraws its grant and, recursively,
-every grant it delegated. `State.Grants` lists the grants in force.
+every grant it delegated. `State.Grants` lists the grants in force at the time of the
+last entry: scheduled and expired grants are not listed.
 
 ### 10.4 ACTION: intent, then completion (ADR-13)
 
