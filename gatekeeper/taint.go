@@ -91,11 +91,11 @@ func (g *Gatekeeper) ResetTaint(agent, reason string) error {
 		return err
 	}
 	args := []byte("cleared:" + a.taintOf() + "\nreason:" + reason)
-	if _, err := g.intent(a, "taint.reset", args); err != nil {
+	if _, err := g.intent(a, "taint.reset", args, nil); err != nil {
 		return err
 	}
 	a.untaint()
-	if err := g.finish(a, "taint.reset", args, okResult(nil)); err != nil {
+	if err := g.finish(a, okResult(nil)); err != nil {
 		return fmt.Errorf("gatekeeper: taint cleared but its completion could not be logged yet: %w", err)
 	}
 	return nil

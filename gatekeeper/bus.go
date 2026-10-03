@@ -86,7 +86,7 @@ func (g *Gatekeeper) Send(ctx context.Context, from, to, typ string, body []byte
 		g.boxes[to] = append(g.boxes[to], Message{Type: typ, From: from, Body: slices.Clone(body), Tainted: !t.NoTaint && a.taintOf() != ""})
 		return nil, nil
 	}
-	_, err = g.do(ctx, a, action, args, deliver)
+	_, err = g.do(ctx, a, action, args, deliver, use{})
 	return err
 }
 

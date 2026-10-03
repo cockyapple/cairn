@@ -128,7 +128,7 @@ exists today, and what does not, so nothing is oversold:
 | Language-neutral conformance vectors, with an independent stdlib re-derivation test | Built and tested |
 | Spec, threat model, constitution, decision records | Written |
 | Merkle inclusion and consistency proofs (RFC 9162), checked against Certificate Transparency reference roots | Built and tested |
-| Governance replay: who may write what, tier approvals and delays, validator rotation, freeze and lift, ACTION intent trail | Built and tested (invariants I1 and I3 enforced, I11 at delegation time via capability grants; see SPEC section 10.5 for the rest, which is not) |
+| Governance replay: who may write what, tier approvals and delays, validator rotation, freeze and lift, ACTION intent trail | Built and tested (invariants I1 and I3 enforced, I11 at delegation time via capability grants, and a bound agent's actions held to its grant: tool, host, expiry, shared budget; see SPEC section 10.5 for the rest, which is not) |
 | Verifier CLI (`cmd/cairn-verify`) and fuzz targets for every decoder | Built; short fuzz runs in CI |
 | Language-neutral vectors for proofs and governance | **Not yet**: Go tests only, so a second implementation has nothing to check against |
 | Review workflow: proposal, council vote, activation, loader that serves only activated content (`review`, `loader`) | Built and tested, including a rejected change that the loader refuses |

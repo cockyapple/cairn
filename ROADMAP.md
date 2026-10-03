@@ -48,8 +48,8 @@ injection-defense and model/fleet design.
 ### Phase 1 (weeks 3 to 6): The ledger. PARTLY BUILT
 Append-only log server, inclusion and consistency proofs, verifier CLI, one witness on a
 separate machine, and the governance state machine that enforces roles, tiers, timelocks
-and freeze (invariants I1, I3 and, at the moment of delegation, I11 are enforced; I4 is not: SPEC 10.5).
-Capability grants and delegation have a format and a replay check (SPEC 10.3.2); the formats for model
+and freeze (invariants I1, I3 and I11 are enforced, and a bound agent's actions are held to its grant; I4 is not: SPEC 10.5).
+Capability grants, delegation and grant enforcement on replay (tools, hosts, a cumulative budget shared down the delegation chain, expiry) are built (SPEC 10.3.2, 10.3.3); the formats for model
 identity and agent suspension are not started. Fuzzing
 of every decoder (8 targets, 20 seconds each in CI; short runs, not a soak).
 *Done when* the tamper suite passes, the verifier is under budget and a witness catches a
@@ -102,7 +102,7 @@ provably never loads.
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
 policy layer, message bus, review page and the end-to-end test are built. **Not built:**
 the per-agent OS sandbox and live-service tests of the adapters. There is also no eval runner service: `eval` is a library, and the scores a
-proposal carries are the proposer's claim, which the log does not recompute. I4 is not enforced, and I11 only as far as delegation (SPEC 10.5).
+proposal carries are the proposer's claim, which the log does not recompute. I4 is not enforced. Grants are enforced on replay only for agents that have held one, and cost and host are declared by the writer (SPEC 10.5).
 Phase 1 additions built since: the log server (`docs/LOG-SERVER.md`) and an independent
 witness process (`docs/WITNESS.md`), neither yet run on a second real machine.
 

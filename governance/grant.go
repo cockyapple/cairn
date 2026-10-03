@@ -201,6 +201,9 @@ type GrantInfo struct {
 	// effective_after for a root grant, the intent's time for a delegation.
 	EffectiveAfter uint64
 	DelegatedBy    *[32]byte // nil for a root grant
+	// Spent is the budget used under this grant: by its holder and by every key
+	// the grant was passed down to. It is not tracked for an unlimited grant.
+	Spent uint64
 }
 
 type grantRec struct {
@@ -208,15 +211,23 @@ type grantRec struct {
 	height    uint64
 	effective uint64
 	parent    *[32]byte
+	spent     uint64 // budget used by this key and everything delegated from it
 }
 
 // withdraw removes the grant held by k and every grant derived from it.
+// A revoked key loses its scheduled grants too; keys beneath it lose only the
+// grants they were handed, because a root grant approved for them separately
+// does not come from the revoked key.
 func (r *replayer) withdraw(k [32]byte) {
-	delete(r.grants, k)
 	delete(r.sched, k)
+	r.withdrawDerived(k)
+}
+
+func (r *replayer) withdrawDerived(k [32]byte) {
+	delete(r.grants, k)
 	for c, g := range r.grants {
 		if g.parent != nil && *g.parent == k {
-			r.withdraw(c)
+			r.withdrawDerived(c)
 		}
 	}
 }
@@ -279,8 +290,19 @@ func (r *replayer) delegate(e *ledger.Entry, a ledger.Action) error {
 	if !d.Grant.StrictlyWithin(parent.g) {
 		return fail(e.Height, CodeNotNarrower, "a delegation must be a strict subset of the delegating key's own grant")
 	}
+	for k := e.Author; ; {
+		if k == d.Child {
+			return fail(e.Height, CodeBadDelegation, "the receiving key is already above the delegating key in the chain")
+		}
+		g := r.grants[k]
+		if g == nil || g.parent == nil {
+			break
+		}
+		k = *g.parent
+	}
 	by := e.Author
 	r.grants[d.Child] = &grantRec{g: d.Grant, height: e.Height, effective: e.Time, parent: &by}
+	r.bound[d.Child] = true
 	return nil
 }
 
@@ -302,6 +324,7 @@ func (r *replayer) promote(t uint64) {
 			continue
 		}
 		r.grants[k] = list[best]
+		r.bound[k] = true
 		if rest := list[best+1:]; len(rest) > 0 {
 			r.sched[k] = rest
 		} else {
@@ -316,7 +339,7 @@ func (r *replayer) grantInfos(now uint64) []GrantInfo {
 		if expired(g.g, now) {
 			continue
 		}
-		out = append(out, GrantInfo{Agent: k, Grant: g.g, Height: g.height, EffectiveAfter: g.effective, DelegatedBy: g.parent})
+		out = append(out, GrantInfo{Agent: k, Grant: g.g, Height: g.height, EffectiveAfter: g.effective, DelegatedBy: g.parent, Spent: g.spent})
 	}
 	sortGrantInfos(out)
 	return out

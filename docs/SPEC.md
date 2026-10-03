@@ -287,8 +287,51 @@ not expired;
 child's tools and hosts are subsets of the author's, its budget and `not_after` are
 no greater, and at least one of the four is strictly smaller. The child's grant takes
 effect at the entry's time. Revoking a key withdraws its grant and, recursively,
-every grant it delegated. `State.Grants` lists the grants in force at the time of the
+every grant it delegated; a root grant that governance approved separately for one of
+those keys is not derived from it and still takes effect at its time. A revoked key also
+loses its own scheduled grants. `State.Grants` lists the grants in force at the time of the
 last entry: scheduled and expired grants are not listed.
+
+### 10.3.3 Enforcing a grant on replay (I2, I6)
+
+An agent is **bound** once it has held a grant: a root grant that has taken effect,
+or a delegation. Binding is never undone, not by expiry and not by withdrawal. An
+agent that has never held a grant is unconstrained (see 10.5).
+
+An ACTION **intent** by a bound agent is checked against the agent's grant, unless
+its type is `cairn/delegate` (10.3.2) or `cairn/event` (10.4). Completions are
+never checked. The `args_hash` of a checked intent must be the hash of a **use**
+blob:
+
+```
+u8 version (1) | string host | u64 cost | bytes args
+```
+
+`host` may be empty. `args` is the caller's own argument blob and is not parsed.
+The checks run in this order and the first failure is reported:
+
+1. `no_grant`: the agent holds no grant now (it was withdrawn, for example by a
+   revocation of its parent).
+2. `grant_expired`: the entry's time is at or past the grant's `not_after`.
+3. `bad_blob`: the use blob is not supplied. `bad_use`: it does not decode, or
+   has bytes left over.
+4. `tool_not_granted`: `action_type` is not in the grant's tools.
+5. `host_not_granted`: `host` is not empty and not in the grant's hosts.
+6. `budget_exceeded`: `cost` is more than the budget still unspent on the
+   agent's grant, or on any grant above it in the delegation chain.
+
+**Budget.** The cost of an intent is charged when the intent is written, as a
+reservation. A completion refunds nothing, and neither does a refusal the agent
+wrote about itself. A cost is charged to the agent's grant and to every grant
+above it through the parent chain, so a parent's budget bounds all of its
+descendants together and siblings cannot multiply it. The whole chain is checked
+before anything is charged, so a failed intent charges nothing. A grant with
+unlimited budget is not counted. A root grant that takes effect starts a new
+count. `State.Grants[].Spent` reports the count.
+
+**Delegation loops.** A delegation to a key that is already above the author in
+its own chain is `bad_delegation`. Without this rule an expired grant, which may be
+overwritten, would let a chain close on itself.
 
 ### 10.4 ACTION: intent, then completion (ADR-13)
 
@@ -299,6 +342,13 @@ An ACTION whose `result_hash` is zero is an **intent**. One with a non-zero
 the entry hash of the same author's previous ACTION, or zero for its first
 (`bad_action_chain`). The replay reports every intent still open; an old open
 intent is a signal (crash, refusal or concealment), not itself a violation.
+
+An ACTION of type `cairn/event` records something the agent's gatekeeper did
+about the agent, such as a refusal or a rate limit, for a bound agent that
+cannot put its own refusals through the grant check. Its args are
+`string type | bytes args`, the type and arguments of the action the event is
+about. The replay does not parse them and does not check the action against the
+grant.
 
 Convention, not a rule the replay checks: a gatekeeper writes the result blob so
 that its first line is `ok`, `error` or `refused`, and a refusal is an intent
@@ -314,11 +364,15 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
 - **I5, I6, I8, I9, I12** concern the gatekeeper and the agent runtime
   (Phase 2 and later), not the log.
 - **I11 (delegation only narrows)** is enforced at the moment of delegation
-  (10.3.2), and only there. The replay does not yet compare an agent's ACTIONs with
-  its grant (that is I2 and I6, with the gatekeeper), and it does not total the
-  budget an agent has spent, so `budget` is a ceiling on what may be handed down,
-  not yet a counter. Replacing a root grant with a smaller one does not shrink grants already
+  (10.3.2). Replacing a root grant with a smaller one does not shrink grants already
   delegated from the old one; revoking the key does.
+- **I2 and I6 (an agent stays inside its grant)** are enforced on replay for bound
+  agents (10.3.3), with limits worth stating. The log can show that an intent was
+  outside the grant and reject the entry, but it cannot stop an action taken without
+  writing an intent. `host` and `cost` are declared by the writer, not measured.
+  Budget is a reservation with no refund. An agent that has never held a grant is
+  not checked at all, so a deployment that wants every agent held to a grant must
+  give every agent one; a governance switch that requires this is future work.
 - **Time.** Delays are measured on entry `time` values, which are claims. They
   are bounded by monotonicity and, in Stage A, by the sequencer refusing
   entries far from its own clock; a consumer that loads a change must compare
@@ -349,4 +403,6 @@ keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
 `insufficient_approvals`, `delay_too_short`, `delay_not_elapsed`, `frozen`,
 `bad_freeze_state`, `bad_validators_change`, `bad_action_chain`,
 `bad_action_completion`, `tier_too_low`, `future_entry`, `bad_revocation`, `revoked_key`,
-`bad_grant`, `bad_delegation`, `delegation_not_narrower`.
+`bad_grant`, `bad_delegation`, `delegation_not_narrower`, `no_grant`,
+`grant_expired`, `bad_use`, `tool_not_granted`, `host_not_granted`,
+`budget_exceeded`.

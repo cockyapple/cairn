@@ -19,9 +19,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/cockyapple/cairn/governance"
 	"github.com/cockyapple/cairn/ledger"
 	"github.com/cockyapple/cairn/loader"
 	"github.com/cockyapple/cairn/review"
@@ -43,6 +45,9 @@ const (
 	CodeRouteDenied    = "route_denied"
 	CodeMailboxFull    = "mailbox_full"
 	CodeUnknownMessage = "unknown_message_type"
+	// CodeOutOfGrant: the log would not take the intent because it falls outside
+	// the agent's capability grant (tool, host, budget, expiry).
+	CodeOutOfGrant = "out_of_grant"
 )
 
 // Refusal is returned when policy stopped an action. Code is stable.
@@ -104,16 +109,44 @@ type Agent struct {
 	// pending is a completion the log refused after the handler had run. The
 	// intent is still open, and the replay wants it closed first, so the agent
 	// takes no new action until this is written.
-	pending     *pendingCompletion
+	pending *pendingCompletion
+	// open is the form in which the intent now open on the log was written; the
+	// completion must repeat it exactly.
+	open        *wireForm
 	winStart    time.Time
 	winCount    int
 	unlogged    int  // refusals counted but not individually logged
 	limitLogged bool // the first over-budget refusal of this window is on the log
 }
 
-type pendingCompletion struct {
-	actionType string
-	args, blob []byte
+type pendingCompletion struct{ blob []byte }
+
+// wireForm is the action type and args blob as they appear on the log. A bound
+// agent (one that has held a grant) writes its real actions with a use envelope
+// and its gatekeeper records as cairn/event; any other agent writes them plain.
+type wireForm struct {
+	typ  string
+	args []byte
+}
+
+// use is what a real action declares about itself for the grant check.
+type use struct {
+	host string
+	cost uint64
+}
+
+func (a *Agent) pub() (p [32]byte) {
+	copy(p[:], a.Key.Public().(ed25519.PublicKey))
+	return p
+}
+
+func grantCode(c string) bool {
+	switch c {
+	case governance.CodeNoGrant, governance.CodeGrantExpired, governance.CodeToolNotGranted,
+		governance.CodeHostNotGranted, governance.CodeBudgetExceeded:
+		return true
+	}
+	return false
 }
 
 // View returns a freshly verified loader gate and the current trusted time.
@@ -204,21 +237,62 @@ func okResult(b []byte) []byte      { return append([]byte("ok\n"), b...) }
 func errResult(msg string) []byte   { return []byte("error\n" + msg) }
 func refusalBlob(r *Refusal) []byte { return []byte("refused\n" + r.Code + "\n" + r.Detail) }
 
-func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte) (ledger.Hash, error) {
+// intent writes the intent for an action. u is nil for the gatekeeper's own
+// records (refusals, rate limits, taint resets): those are not actions the agent
+// takes, so a bound agent's grant is not applied to them.
+func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte, u *use) (ledger.Hash, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	h, err := g.log.Intent(a.Key, actionType, args)
-	if err != nil {
-		return h, fmt.Errorf("%w: %v", ErrNotLogged, err)
+	bound := g.log.State().Bound(a.pub())
+	// The plain form is only safe when it cannot be mistaken for the bound form:
+	// if the agent turns out to be bound after all, the replay would read plain
+	// args that happen to be a Use blob as a declaration, and a reserved type as
+	// the real thing. Writing the bound form for an unbound agent costs nothing,
+	// because the replay does not look at it.
+	ambiguous := strings.HasPrefix(actionType, "cairn/")
+	if _, err := governance.DecodeUse(args); err == nil {
+		ambiguous = true
 	}
+	h, wf, err := g.writeIntent(a, actionType, args, u, bound || ambiguous)
+	if !bound && !ambiguous && err != nil {
+		// A root grant takes effect when the replay reaches an entry at or after
+		// its effective time, so the state can lag by one entry. The replay says
+		// the agent is bound by rejecting the plain form.
+		if c := governance.ErrCode(err); c == governance.CodeBadUse || c == governance.CodeBadBlob {
+			h, wf, err = g.writeIntent(a, actionType, args, u, true)
+		}
+	}
+	if err != nil {
+		return h, fmt.Errorf("%w: %w", ErrNotLogged, err)
+	}
+	a.open = wf
 	return h, nil
 }
 
-func (g *Gatekeeper) complete(a *Agent, actionType string, args, result []byte) error {
+func (g *Gatekeeper) writeIntent(a *Agent, actionType string, args []byte, u *use, bound bool) (ledger.Hash, *wireForm, error) {
+	wf := &wireForm{actionType, args}
+	switch {
+	case bound && u != nil:
+		wf = &wireForm{actionType, governance.Use{Host: u.host, Cost: u.cost, Args: args}.Encode()}
+	case bound:
+		wf = &wireForm{governance.ActionEvent, governance.EventArgs(actionType, args)}
+	}
+	h, err := g.log.Intent(a.Key, wf.typ, wf.args)
+	return h, wf, err
+}
+
+// complete closes the agent's open intent in the form it was written.
+func (g *Gatekeeper) complete(a *Agent, result []byte) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	_, err := g.log.Complete(a.Key, actionType, args, result)
-	return err
+	if a.open == nil {
+		return errors.New("gatekeeper: no open intent to complete")
+	}
+	if _, err := g.log.Complete(a.Key, a.open.typ, a.open.args, result); err != nil {
+		return err
+	}
+	a.open = nil
+	return nil
 }
 
 // refuse logs the refusal and returns it.
@@ -226,10 +300,10 @@ func (g *Gatekeeper) refuse(a *Agent, actionType string, args []byte, r *Refusal
 	if err := g.flush(a); err != nil {
 		return err
 	}
-	if _, err := g.intent(a, actionType, args); err != nil {
+	if _, err := g.intent(a, actionType, args, nil); err != nil {
 		return err
 	}
-	if err := g.finish(a, actionType, args, refusalBlob(r)); err != nil {
+	if err := g.finish(a, refusalBlob(r)); err != nil {
 		return err
 	}
 	return r
@@ -237,10 +311,10 @@ func (g *Gatekeeper) refuse(a *Agent, actionType string, args []byte, r *Refusal
 
 // finish writes a completion and, if the log refuses it, remembers it so that
 // flush can retry before the agent does anything else.
-func (g *Gatekeeper) finish(a *Agent, actionType string, args, blob []byte) error {
-	err := g.complete(a, actionType, args, blob)
+func (g *Gatekeeper) finish(a *Agent, blob []byte) error {
+	err := g.complete(a, blob)
 	if err != nil {
-		a.pending = &pendingCompletion{actionType, args, blob}
+		a.pending = &pendingCompletion{blob}
 	}
 	return err
 }
@@ -252,7 +326,7 @@ func (g *Gatekeeper) flush(a *Agent) error {
 	if p == nil {
 		return nil
 	}
-	if err := g.complete(a, p.actionType, p.args, p.blob); err != nil {
+	if err := g.complete(a, p.blob); err != nil {
 		return fmt.Errorf("%w: an earlier completion is still unwritten: %v", ErrNotLogged, err)
 	}
 	a.pending = nil
@@ -280,6 +354,15 @@ func (g *Gatekeeper) configOK(a *Agent) *Refusal {
 // completion. The returned error is a *Refusal when policy said no, and wraps
 // ErrNotLogged when the log would not take the intent.
 func (g *Gatekeeper) Do(ctx context.Context, agent, actionType string, args []byte) ([]byte, error) {
+	return g.DoUse(ctx, agent, actionType, args, "", 0)
+}
+
+// DoUse is Do for an agent that holds a capability grant. host and cost are what
+// the action declares about itself: the host it will reach (empty for none) and
+// the budget units it uses. The log checks them against the grant when the intent
+// is written, and an action outside the grant is refused with CodeOutOfGrant.
+// For an agent that has never held a grant they are not recorded.
+func (g *Gatekeeper) DoUse(ctx context.Context, agent, actionType string, args []byte, host string, cost uint64) ([]byte, error) {
 	a, err := g.agent(agent)
 	if err != nil {
 		return nil, err
@@ -289,10 +372,10 @@ func (g *Gatekeeper) Do(ctx context.Context, agent, actionType string, args []by
 	if err := g.admit(a); err != nil {
 		return nil, err
 	}
-	return g.do(ctx, a, actionType, args, nil)
+	return g.do(ctx, a, actionType, args, nil, use{host, cost})
 }
 
-func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args []byte, run Handler) ([]byte, error) {
+func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args []byte, run Handler, u use) ([]byte, error) {
 	// The log commits to the arguments the agent asked for, so nothing a handler
 	// or the caller does to its own slice may reach the intent or the completion.
 	args = bytes.Clone(args)
@@ -301,6 +384,12 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 	}
 	if len(args) > a.MaxArgs {
 		return nil, g.refuse(a, actionType, nil, &Refusal{CodeArgsTooLarge, fmt.Sprintf("%d bytes exceeds the limit of %d", len(args), a.MaxArgs)})
+	}
+	if strings.HasPrefix(actionType, "cairn/") {
+		return nil, g.refuse(a, actionType, args, &Refusal{CodeNotPermitted, "action types starting with cairn/ are reserved"})
+	}
+	if _, err := governance.DecodeUse(governance.Use{Host: u.host}.Encode()); err != nil {
+		return nil, g.refuse(a, actionType, args, &Refusal{CodeNotPermitted, "the declared host cannot be recorded: " + err.Error()})
 	}
 	if !a.allowed[actionType] {
 		return nil, g.refuse(a, actionType, args, &Refusal{CodeNotPermitted, "the agent holds no capability for this action"})
@@ -325,8 +414,11 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 			escalated = true
 		}
 	}
-	ih, err := g.intent(a, actionType, args)
+	ih, err := g.intent(a, actionType, args, &u)
 	if err != nil {
+		if c := governance.ErrCode(err); grantCode(c) {
+			return nil, g.refuse(a, actionType, args, &Refusal{CodeOutOfGrant, "the agent's capability grant does not allow this (" + c + ")"})
+		}
 		return nil, err
 	}
 	var reviewed []byte
@@ -339,7 +431,7 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 			reviewed = d.header()
 		}
 		if r != nil {
-			if err := g.finish(a, actionType, args, append(reviewed, refusalBlob(r)...)); err != nil {
+			if err := g.finish(a, append(reviewed, refusalBlob(r)...)); err != nil {
 				return nil, err
 			}
 			return nil, r
@@ -368,7 +460,7 @@ func (g *Gatekeeper) do(ctx context.Context, a *Agent, actionType string, args [
 		blob = okResult(res)
 	}
 	blob = append(reviewed, blob...)
-	if err := g.finish(a, actionType, args, blob); err != nil {
+	if err := g.finish(a, blob); err != nil {
 		return nil, fmt.Errorf("gatekeeper: action ran but its completion could not be logged: %w", err)
 	}
 	if herr != nil {

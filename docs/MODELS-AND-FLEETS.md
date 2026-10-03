@@ -126,7 +126,7 @@ one agent holding private data, untrusted input and an exit.
 | Phase | Addition |
 |-------|----------|
 | 0 | This design, invariants I11 and I12, ADRs 10 and 11 (done) |
-| 1 | Formats: capability grant and delegation, with the replay enforcing I11 at delegation time (built, SPEC 10.3.2); model-identity record and agent-suspend (not started) |
+| 1 | Formats: capability grant and delegation, with the replay enforcing I11 at delegation time and each action against its grant (built, SPEC 10.3.2 and 10.3.3); model-identity record and agent-suspend (not started) |
 | 2 | Gatekeeper with provider adapters (OpenAI-compatible, Anthropic, Google, Ollama), per-agent sandbox, message bus |
 | 3 | Fleet budgets, concurrency and spawn limits, fleet anomaly freeze |
 | 5 | Per-model injection scoring, model trust classes, multi-agent adversarial tests (agent-to-agent injection, collusion, budget splitting) |

@@ -116,6 +116,8 @@ type State struct {
 	Completed   int
 	Revocations []Revocation // in log order
 	Grants      []GrantInfo  // grants in force after the last entry, oldest first
+
+	bound map[[32]byte]bool
 }
 
 // Trust returns the configuration in force after the last entry.
@@ -189,6 +191,7 @@ type replayer struct {
 	revoked   map[[32]byte]bool
 	grants    map[[32]byte]*grantRec
 	sched     map[[32]byte][]*grantRec // activated root grants not yet effective, in activation order
+	bound     map[[32]byte]bool        // keys that have held a grant
 }
 
 // Replay verifies the chain (authenticity) and then every governance rule
@@ -206,6 +209,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 		revoked:   map[[32]byte]bool{},
 		grants:    map[[32]byte]*grantRec{},
 		sched:     map[[32]byte][]*grantRec{},
+		bound:     map[[32]byte]bool{},
 	}
 	for i := range entries {
 		e := &entries[i]
@@ -233,6 +237,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 	last := entries[len(entries)-1].Time
 	r.promote(last)
 	r.st.Grants = r.grantInfos(last)
+	r.st.bound = r.bound
 	sort.Slice(r.st.OpenIntents, func(i, j int) bool { return r.st.OpenIntents[i].Height < r.st.OpenIntents[j].Height })
 	final := r.epoch()
 	for _, p := range r.order {
@@ -484,6 +489,9 @@ func (r *replayer) action(e *ledger.Entry, b []byte) error {
 			if err := r.delegate(e, a); err != nil {
 				return err
 			}
+		}
+		if err := r.authorize(e, a); err != nil {
+			return err
 		}
 		oi := OpenIntent{Agent: e.Author, Height: e.Height, Hash: h, ActionType: a.ActionType, ArgsHash: a.ArgsHash, Time: e.Time}
 		ag.open = append(ag.open, oi)

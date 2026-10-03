@@ -164,7 +164,7 @@ func TestDelegationRules(t *testing.T) {
 		{"delegating to a key with no role", func(w *world) { w.delegate("agent", "stranger", Grant{}) }, CodeBadDelegation},
 		{"delegating to a key that already holds a grant", func(w *world) {
 			w.delegate("agent", "agent2", Grant{NotAfter: 8_000_000})
-			w.put(ledger.KindAction, "agent", (&ledger.Action{ActionType: "x", ArgsHash: ledger.Hash{1}, PrevActionHash: w.lastActionOf("agent")}).Encode())
+			w.useRaw("agent", ActionEvent, nil)
 			w.delegate("agent", "agent2", Grant{Budget: 1, NotAfter: 8_000_000})
 		}, CodeBadDelegation},
 		{"delegating to a revoked key", func(w *world) {
@@ -189,9 +189,9 @@ func TestDelegationRules(t *testing.T) {
 			a := ledger.Action{ActionType: ActionDelegate, ArgsHash: ledger.Hash{7}, PrevActionHash: w.lastActionOf("agent")}
 			w.put(ledger.KindAction, "agent", a.Encode())
 		}, CodeBadBlob},
-		{"another action type is not inspected", func(w *world) {
-			w.put(ledger.KindAction, "agent", (&ledger.Action{ActionType: "cairn/delegate2", ArgsHash: ledger.Hash{9}}).Encode())
-		}, ""},
+		{"a lookalike of the delegation type is an ordinary action", func(w *world) {
+			w.useIntent("agent", "cairn/delegate2", Use{})
+		}, CodeToolNotGranted},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

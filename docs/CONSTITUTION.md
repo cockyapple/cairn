@@ -68,15 +68,17 @@ The Phase 1 governance replay (SPEC section 10) enforces **I1** (no
 self-governance, by role) and **I3** (a freeze stops activations only, and T0
 rollbacks still pass). It enforces **I11** at the moment of delegation: a grant
 handed to another agent must be a strict subset of the delegator's own (SPEC
-10.3.2). It records **I7** as an auditable trail: an intent
+10.3.2). Once an agent has held a grant, the replay also holds each of its actions
+to that grant: tool, host, expiry and a budget that is totalled down the delegation
+chain (SPEC 10.3.3). It records **I7** as an auditable trail: an intent
 entry precedes its completion, but nothing yet proves a gatekeeper waited for
 it. **I2** holds only to the extent that consumers read configuration from the
 ledger, which no code here does yet.
 
 Not enforced by any code today: **I4** (it needs the ledger to understand what a
 change means; only tier minimums and reserved T4 targets are mechanical), **I5,
-I6, I8, I9, I12** (gatekeeper and agent runtime, Phase 2 and later). **I11** is
-enforced only for delegation: nothing yet compares an agent's actions with its grant
-or totals its spending, so a grant is a ceiling on what may be handed down, not a
-limit anything polices. Until the rest are enforced, they are commitments, not
+I6, I8, I9, I12** (gatekeeper and agent runtime, Phase 2 and later). **I11** and the grant
+check are enforced on replay, with stated limits: an agent that has never held a
+grant is not checked, `host` and `cost` are declared by the writer, and an action
+taken without writing an intent is invisible to the log (SPEC 10.5). Until the rest are enforced, they are commitments, not
 guarantees, and this repository must not claim otherwise.

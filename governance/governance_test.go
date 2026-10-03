@@ -419,6 +419,33 @@ func TestViolations(t *testing.T) {
 			w.grantFor("agent", rootGrant)
 			w.delegate("agent", "agent2", rootGrant)
 		}},
+		{"an agent whose grant was withdrawn", CodeNoGrant, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.delegate("agent", "agent2", Grant{NotAfter: 8_000_000})
+			w.revoke("sec", "agent")
+			w.useIntent("agent2", "shell", Use{})
+		}},
+		{"an agent whose grant has expired", CodeGrantExpired, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.now = rootGrant.NotAfter
+			w.useIntent("agent", "shell", Use{})
+		}},
+		{"a bound agent's args that are not a use", CodeBadUse, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.useRaw("agent", "shell", []byte("x"))
+		}},
+		{"an action type outside the grant", CodeToolNotGranted, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.useIntent("agent", "fs.write", Use{})
+		}},
+		{"a host outside the grant", CodeHostNotGranted, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.useIntent("agent", "shell", Use{Host: "c.example"})
+		}},
+		{"more than the budget", CodeBudgetExceeded, func(w *world) {
+			w.grantFor("agent", rootGrant)
+			w.useIntent("agent", "shell", Use{Cost: 1001})
+		}},
 		{"a malformed payload keeps the ledger code", ledger.CodeBadPayload, func(w *world) {
 			w.put(ledger.KindActivate, "val", []byte("short"))
 		}},

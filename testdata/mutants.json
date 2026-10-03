@@ -359,8 +359,8 @@
  {
   "name": "grant: delegation needs a grant",
   "file": "governance/grant.go",
-  "old": "parent == nil",
-  "new": "false"
+  "old": "case parent == nil:",
+  "new": "case false:"
  },
  {
   "name": "grant: delegation to a revoked key",
@@ -444,8 +444,8 @@
  {
   "name": "grant: a revoked key keeps its scheduled grant",
   "file": "governance/grant.go",
-  "old": "delete(r.grants, k)\n\tdelete(r.sched, k)",
-  "new": "delete(r.grants, k)"
+  "old": "withdraw(k [32]byte) {\n\tdelete(r.sched, k)\n",
+  "new": "withdraw(k [32]byte) {\n"
  },
  {
   "name": "grant: names need not be UTF-8",
@@ -476,5 +476,155 @@
   "file": "governance/governance.go",
   "old": "e.Time > opt.Now && e.Time-opt.Now > opt.MaxSkew",
   "new": "e.Time-opt.Now > opt.MaxSkew"
+ },
+ {
+  "name": "use: delegation is checked against the grant",
+  "file": "governance/use.go",
+  "old": "a.ActionType == ActionDelegate || a.ActionType == ActionEvent ||",
+  "new": "a.ActionType == ActionEvent ||"
+ },
+ {
+  "name": "use: events are checked against the grant",
+  "file": "governance/use.go",
+  "old": "a.ActionType == ActionDelegate || a.ActionType == ActionEvent ||",
+  "new": "a.ActionType == ActionDelegate ||"
+ },
+ {
+  "name": "use: an unbound agent is checked",
+  "file": "governance/use.go",
+  "old": "|| !r.bound[e.Author] {",
+  "new": "|| false {"
+ },
+ {
+  "name": "use: expiry is one entry late",
+  "file": "governance/use.go",
+  "old": "expired(rec.g, e.Time)",
+  "new": "expired(rec.g, e.Time-1)"
+ },
+ {
+  "name": "use: an empty host is checked",
+  "file": "governance/use.go",
+  "old": "u.Host != \"\" && !slices.Contains",
+  "new": "!slices.Contains"
+ },
+ {
+  "name": "use: the whole budget cannot be used",
+  "file": "governance/use.go",
+  "old": "u.Cost > g.g.Budget-g.spent",
+  "new": "u.Cost >= g.g.Budget-g.spent"
+ },
+ {
+  "name": "use: budget compare adds and overflows",
+  "file": "governance/use.go",
+  "old": "u.Cost > g.g.Budget-g.spent",
+  "new": "u.Cost+g.spent > g.g.Budget"
+ },
+ {
+  "name": "use: budget is checked on the agent alone",
+  "file": "governance/use.go",
+  "old": "\t\tif g.parent == nil {\n\t\t\tbreak\n\t\t}",
+  "new": "\t\tif true {\n\t\t\tbreak\n\t\t}"
+ },
+ {
+  "name": "use: unlimited grants are counted",
+  "file": "governance/use.go",
+  "old": "\t\tif g.g.Budget != Unlimited {\n\t\t\tg.spent += u.Cost",
+  "new": "\t\tif true {\n\t\t\tg.spent += u.Cost"
+ },
+ {
+  "name": "grant: a delegate does not become bound",
+  "file": "governance/grant.go",
+  "old": "r.bound[d.Child] = true",
+  "new": "_ = d.Child"
+ },
+ {
+  "name": "grant: a promoted grant does not bind",
+  "file": "governance/grant.go",
+  "old": "r.bound[k] = true",
+  "new": "_ = k"
+ },
+ {
+  "name": "grant: a delegation to a key above is allowed",
+  "file": "governance/grant.go",
+  "old": "if k == d.Child {",
+  "new": "if false {"
+ },
+ {
+  "name": "grant: the chain walk stops after one step",
+  "file": "governance/grant.go",
+  "old": "if g == nil || g.parent == nil {",
+  "new": "if true {"
+ },
+ {
+  "name": "governance: the state does not report bound agents",
+  "file": "governance/governance.go",
+  "old": "r.st.bound = r.bound",
+  "new": "_ = r.bound"
+ },
+ {
+  "name": "gatekeeper: a lagging state is not retried",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "c == governance.CodeBadUse || c == governance.CodeBadBlob",
+  "new": "c == \"never\""
+ },
+ {
+  "name": "gatekeeper: cairn/ types are not reserved",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if strings.HasPrefix(actionType, \"cairn/\") {\n\t\treturn nil, g.refuse",
+  "new": "if false {\n\t\treturn nil, g.refuse"
+ },
+ {
+  "name": "gatekeeper: out-of-grant is not a refusal",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if c := governance.ErrCode(err); grantCode(c) {",
+  "new": "if c := governance.ErrCode(err); c == \"never\" {"
+ },
+ {
+  "name": "gatekeeper: refusals of a bound agent are plain",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "\tcase bound:\n\t\twf = &wireForm{governance.ActionEvent",
+  "new": "\tcase false:\n\t\twf = &wireForm{governance.ActionEvent"
+ },
+ {
+  "name": "gatekeeper: the use drops the arguments",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "Cost: u.cost, Args: args}",
+  "new": "Cost: u.cost, Args: nil}"
+ },
+ {
+  "name": "gatekeeper: budget refusals are not converted",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "governance.CodeHostNotGranted, governance.CodeBudgetExceeded:",
+  "new": "governance.CodeHostNotGranted:"
+ },
+ {
+  "name": "gatekeeper: the completion repeats the wrong form",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "a.open = wf",
+  "new": "a.open = &wireForm{actionType, args}\n\t_ = wf"
+ },
+ {
+  "name": "gatekeeper: reserved types are not written plain",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "ambiguous := strings.HasPrefix(actionType, \"cairn/\")",
+  "new": "ambiguous := false"
+ },
+ {
+  "name": "gatekeeper: args that look like a use are not wrapped",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if _, err := governance.DecodeUse(args); err == nil {",
+  "new": "if false {"
+ },
+ {
+  "name": "gatekeeper: an unrecordable host is not refused",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if _, err := governance.DecodeUse(governance.Use{Host: u.host}.Encode()); err != nil {",
+  "new": "if err := error(nil); err != nil {"
+ },
+ {
+  "name": "grant: revoking a parent cancels a child root grant",
+  "file": "governance/grant.go",
+  "old": "r.withdrawDerived(c)",
+  "new": "r.withdraw(c)"
  }
 ]

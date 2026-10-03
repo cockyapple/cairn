@@ -1,5 +1,5 @@
-# go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 2 minutes)
-# base commit e0795f1d66ade4a84bdb3a90dc67819372b19eab plus the uncommitted changes that add this file
+# go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 3 minutes)
+# base commit e5079843fa0de4c04d8f7839a63601f8131f8bdc plus the uncommitted changes that add this file
 
 go version go1.24.13 linux/amd64
 killed     witness      witness: last-entry identity
@@ -85,5 +85,30 @@ killed     governance   grant: malformed target is bad_grant
 killed     governance   governance: validators change takes the last matching proposal
 killed     governance   governance: skew check overflows
 killed     governance   governance: skew check underflows
+killed     governance   use: delegation is checked against the grant
+killed     governance   use: events are checked against the grant
+killed     governance   use: an unbound agent is checked
+killed     governance   use: expiry is one entry late
+killed     governance   use: an empty host is checked
+killed     governance   use: the whole budget cannot be used
+killed     governance   use: budget compare adds and overflows
+killed     governance   use: budget is checked on the agent alone
+killed     governance   use: unlimited grants are counted
+killed     governance   grant: a delegate does not become bound
+killed     governance   grant: a promoted grant does not bind
+killed     governance   grant: a delegation to a key above is allowed
+killed     governance   grant: the chain walk stops after one step
+killed     governance   governance: the state does not report bound agents
+killed     gatekeeper   gatekeeper: a lagging state is not retried
+killed     gatekeeper   gatekeeper: cairn/ types are not reserved
+killed     gatekeeper   gatekeeper: out-of-grant is not a refusal
+killed     gatekeeper   gatekeeper: refusals of a bound agent are plain
+killed     gatekeeper   gatekeeper: the use drops the arguments
+killed     gatekeeper   gatekeeper: budget refusals are not converted
+killed     gatekeeper   gatekeeper: the completion repeats the wrong form
+killed     gatekeeper   gatekeeper: reserved types are not written plain
+killed     gatekeeper   gatekeeper: args that look like a use are not wrapped
+killed     gatekeeper   gatekeeper: an unrecordable host is not refused
+killed     governance   grant: revoking a parent cancels a child root grant
 
-79 mutants: 4 equivalent 75 killed
+104 mutants: 4 equivalent 100 killed
