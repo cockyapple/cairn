@@ -117,7 +117,8 @@ type State struct {
 	Revocations []Revocation // in log order
 	Grants      []GrantInfo  // grants in force after the last entry, oldest first
 
-	bound map[[32]byte]bool
+	bound         map[[32]byte]bool
+	requireGrants bool
 }
 
 // Trust returns the configuration in force after the last entry.
@@ -159,7 +160,8 @@ type proposalRec struct {
 	epoch     uint64
 	p         ledger.Proposal
 	grantKey  [32]byte
-	grant     *Grant // set for a cairn/grant/ proposal
+	grant     *Grant         // set for a cairn/grant/ proposal
+	policy    *RequirePolicy // set for a cairn/policy/require-grants proposal
 	activated bool
 	actHeight uint64
 	effective uint64
@@ -192,6 +194,9 @@ type replayer struct {
 	grants    map[[32]byte]*grantRec
 	sched     map[[32]byte][]*grantRec // activated root grants not yet effective, in activation order
 	bound     map[[32]byte]bool        // keys that have held a grant
+
+	policySched   []policyRec // activated require-grants changes not yet effective, in activation order
+	requireGrants bool
 }
 
 // Replay verifies the chain (authenticity) and then every governance rule
@@ -220,6 +225,7 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 			return nil, fail(e.Height, CodeFutureEntry, "entry time is later than the verifier's clock allows")
 		}
 		r.promote(e.Time)
+		r.promotePolicy(e.Time)
 		var err error
 		if i == 0 {
 			err = r.genesis(e, opt)
@@ -236,6 +242,8 @@ func Replay(entries []ledger.Entry, blobs Blobs, opt Options) (*State, error) {
 	}
 	last := entries[len(entries)-1].Time
 	r.promote(last)
+	r.promotePolicy(last)
+	r.st.requireGrants = r.requireGrants
 	r.st.Grants = r.grantInfos(last)
 	r.st.bound = r.bound
 	sort.Slice(r.st.OpenIntents, func(i, j int) bool { return r.st.OpenIntents[i].Height < r.st.OpenIntents[j].Height })
@@ -347,7 +355,7 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 		return fail(e.Height, CodeTierTooLow, "this target needs a higher tier under the verifier's policy")
 	}
 	switch p.Target {
-	case targetValidators, targetConstitution, targetGatekeeper:
+	case targetValidators, targetConstitution, targetGatekeeper, PolicyTarget:
 		if p.Tier != ledger.T4 {
 			return fail(e.Height, CodeReservedTarget, "this target can only change at tier T4")
 		}
@@ -365,8 +373,20 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 		}
 		gkey, grant = k, &g
 	}
+	var policy *RequirePolicy
+	if p.Target == PolicyTarget {
+		pb, err := r.blob(e.Height, p.DiffHash, "policy")
+		if err != nil {
+			return err
+		}
+		pol, err := DecodeRequirePolicy(pb)
+		if err != nil {
+			return fail(e.Height, CodeBadPolicy, err.Error())
+		}
+		policy = &pol
+	}
 	h := e.Hash()
-	rec := &proposalRec{hash: h, height: e.Height, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, grantKey: gkey, grant: grant, voters: map[[32]byte]bool{}}
+	rec := &proposalRec{hash: h, height: e.Height, author: e.Author, time: e.Time, epoch: r.epoch(), p: p, grantKey: gkey, grant: grant, policy: policy, voters: map[[32]byte]bool{}}
 	r.proposals[h] = rec
 	r.order = append(r.order, rec)
 	return nil
@@ -457,6 +477,9 @@ func (r *replayer) activate(e *ledger.Entry, b []byte) error {
 	})
 	if prop.p.Target == targetValidators {
 		r.pending = append(r.pending, prop)
+	}
+	if prop.policy != nil {
+		r.policySched = append(r.policySched, policyRec{require: prop.policy.Require, effective: a.EffectiveAfter})
 	}
 	if prop.grant != nil {
 		if r.revoked[prop.grantKey] {

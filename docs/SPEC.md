@@ -183,8 +183,8 @@ check.
 - Entry `time` never decreases from one entry to the next (`time_regression`).
   Time stays advisory (ADR-5): the rule only bounds how far a proposal can be
   backdated to shorten its delay, to the time of the entry before it.
-- Targets `cairn/validators`, `cairn/constitution` and `cairn/gatekeeper` can
-  only be proposed at tier T4; any other target beginning `cairn/` is reserved
+- Targets `cairn/validators`, `cairn/constitution`, `cairn/gatekeeper` and
+  `cairn/policy/require-grants` (10.3.4) can only be proposed at tier T4; any other target beginning `cairn/` is reserved
   (`reserved_target`).
 - A proposal belongs to the epoch in which it was written. A VALIDATORS entry
   voids every earlier open proposal (`wrong_epoch`).
@@ -296,7 +296,8 @@ last entry: scheduled and expired grants are not listed.
 
 An agent is **bound** once it has held a grant: a root grant that has taken effect,
 or a delegation. Binding is never undone, not by expiry and not by withdrawal. An
-agent that has never held a grant is unconstrained (see 10.5).
+agent that has never held a grant is unconstrained unless the log requires
+grants (10.3.4; see 10.5).
 
 An ACTION **intent** by a bound agent is checked against the agent's grant, unless
 its type is `cairn/delegate` (10.3.2) or `cairn/event` (10.4). Completions are
@@ -332,6 +333,28 @@ count. `State.Grants[].Spent` reports the count.
 **Delegation loops.** A delegation to a key that is already above the author in
 its own chain is `bad_delegation`. Without this rule an expired grant, which may be
 overwritten, would let a chain close on itself.
+
+### 10.3.4 Requiring every agent to hold a grant
+
+A PROPOSAL with target `cairn/policy/require-grants` at tier T4 sets whether the
+log requires every agent to hold a grant. Its diff blob is
+
+```
+u8 version (1) | u8 require (0 or 1)
+```
+
+any other bytes are `bad_policy`. The change takes effect like a root grant
+(10.3.2): when the replay reaches an entry whose time is at or after the
+activation's `effective_after`, and an activation made later supersedes any made
+earlier, even one that takes effect later. The default is not to require.
+
+While it is required, an intent by an agent that has never held a grant is
+`no_grant`, as if its grant had been withdrawn. Delegation, `cairn/event` and
+completions are not checked, so an ungranted agent can still be handed a grant,
+log an event, and close an intent it opened before the switch. Bound agents are
+held to their grants as in 10.3.3 whether or not the switch is on. Turning the
+switch off lets ungranted agents act again; it does not unbind anyone.
+`State.RequireGrants` reports the setting in force after the last entry.
 
 ### 10.4 ACTION: intent, then completion (ADR-13)
 
@@ -371,8 +394,10 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
   outside the grant and reject the entry, but it cannot stop an action taken without
   writing an intent. `host` and `cost` are declared by the writer, not measured.
   Budget is a reservation with no refund. An agent that has never held a grant is
-  not checked at all, so a deployment that wants every agent held to a grant must
-  give every agent one; a governance switch that requires this is future work.
+  not checked unless the log has switched on `cairn/policy/require-grants`
+  (10.3.4); a deployment that wants every agent held to a grant must do so, and
+  must still give each agent a grant before it can act. The switch is recorded
+  in the log, so every verifier reads the same setting.
 - **Time.** Delays are measured on entry `time` values, which are claims. They
   are bounded by monotonicity and, in Stage A, by the sequencer refusing
   entries far from its own clock; a consumer that loads a change must compare
@@ -405,4 +430,4 @@ keep the ledger codes `bad_payload` and `bad_trust_config`. The guard test
 `bad_action_completion`, `tier_too_low`, `future_entry`, `bad_revocation`, `revoked_key`,
 `bad_grant`, `bad_delegation`, `delegation_not_narrower`, `no_grant`,
 `grant_expired`, `bad_use`, `tool_not_granted`, `host_not_granted`,
-`budget_exceeded`.
+`budget_exceeded`, `bad_policy`.

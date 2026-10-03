@@ -34,3 +34,9 @@ func (l *Log) Delegate(key ed25519.PrivateKey, child [32]byte, g governance.Gran
 	}
 	return h, nil
 }
+
+// ProposeRequireGrants files the T4 proposal that switches the require-grants
+// rule (SPEC 10.3.4) on or off.
+func (l *Log) ProposeRequireGrants(key ed25519.PrivateKey, on bool, rationale []byte) (ledger.Hash, error) {
+	return l.Propose(key, ledger.T4, governance.PolicyTarget, governance.RequirePolicy{Require: on}.Encode(), rationale, nil)
+}

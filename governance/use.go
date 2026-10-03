@@ -74,7 +74,13 @@ func (s *State) Bound(k [32]byte) bool { return s.bound[k] }
 // other intent of a bound agent must carry a Use blob that fits the grant, and
 // its cost is charged to the grant and to every grant above it.
 func (r *replayer) authorize(e *ledger.Entry, a ledger.Action) error {
-	if a.ActionType == ActionDelegate || a.ActionType == ActionEvent || !r.bound[e.Author] {
+	if a.ActionType == ActionDelegate || a.ActionType == ActionEvent {
+		return nil
+	}
+	if !r.bound[e.Author] {
+		if r.requireGrants {
+			return fail(e.Height, CodeNoGrant, "the log requires every agent to hold a grant and this agent never has")
+		}
 		return nil
 	}
 	rec := r.grants[e.Author]

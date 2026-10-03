@@ -1,5 +1,5 @@
-# go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 3 minutes)
-# base commit e5079843fa0de4c04d8f7839a63601f8131f8bdc plus the uncommitted changes that add this file
+# go run ./internal/mutate -j 3   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=0; about 4 minutes)
+# base commit 07ea7e46dd00225695483cee664cb0c16b03e0b0 plus the uncommitted changes that add this file
 
 go version go1.24.13 linux/amd64
 killed     witness      witness: last-entry identity
@@ -110,5 +110,29 @@ killed     gatekeeper   gatekeeper: reserved types are not written plain
 killed     gatekeeper   gatekeeper: args that look like a use are not wrapped
 killed     gatekeeper   gatekeeper: an unrecordable host is not refused
 killed     governance   grant: revoking a parent cancels a child root grant
+killed     governance   policy: require-grants is not enforced
+killed     governance   policy: an ungranted agent is refused even when grants are not required
+killed     governance   policy: the latest effective policy is not chosen
+killed     governance   policy: takes effect before its effective time
+killed     governance   policy: takes effect only after its effective time has passed
+equivalent governance   policy: applied entries stay scheduled
+           an applied entry kept in the list can only be chosen again when no later entry has come into effect, and then it sets the value it already set; dropping it is bookkeeping
+equivalent governance   policy: an earlier policy is not dropped by a later one
+           the last entry in activation order that has come into effect always wins, so an earlier entry left in the list is never the one chosen once a later one is; dropping them only bounds the list
+killed     governance   policy: activation is not scheduled
+killed     governance   policy: scheduled with no delay
+equivalent governance   policy: not promoted after the last entry
+           every entry is promoted at its own time before it is applied, and a T4 activation is delayed 14 days, so no policy can come into effect between the last entry and the end of the replay; the call mirrors the root-grant promotion beside it
+killed     governance   policy: not promoted during replay
+killed     governance   policy: state does not report the setting
+killed     governance   policy: tier below T4 allowed
+killed     governance   policy: bad blob accepted
+killed     governance   policy: version not checked
+killed     governance   policy: flag range not checked
+killed     governance   policy: trailing bytes accepted
+killed     governance   policy: encoding writes the wrong flag
+killed     gatekeeper   gatekeeper: a record is not retried as an event when grants are required
+equivalent gatekeeper   gatekeeper: an action is retried as an event when grants are required
+           retrying an agent action in the bound form writes a Use blob, which the replay refuses with the same no_grant for an agent that never held a grant; the retry is only ever useful for a record, and the narrower test says so
 
-104 mutants: 4 equivalent 100 killed
+124 mutants: 8 equivalent 116 killed

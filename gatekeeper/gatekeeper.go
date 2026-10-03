@@ -257,8 +257,10 @@ func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte, u *use) (l
 	if !bound && !ambiguous && err != nil {
 		// A root grant takes effect when the replay reaches an entry at or after
 		// its effective time, so the state can lag by one entry. The replay says
-		// the agent is bound by rejecting the plain form.
-		if c := governance.ErrCode(err); c == governance.CodeBadUse || c == governance.CodeBadBlob {
+		// the agent is bound by rejecting the plain form. A gatekeeper record is
+		// refused in the plain form with no_grant when the log requires grants,
+		// and goes in as an event, which needs none.
+		if c := governance.ErrCode(err); c == governance.CodeBadUse || c == governance.CodeBadBlob || (u == nil && c == governance.CodeNoGrant) {
 			h, wf, err = g.writeIntent(a, actionType, args, u, true)
 		}
 	}

@@ -411,6 +411,13 @@ func TestViolations(t *testing.T) {
 		{"only agent and proposer keys can be revoked", CodeBadRevocation, func(w *world) { w.revoke("sec", "rev1") }},
 		{"a revoked key cannot write", CodeRevokedKey, func(w *world) { w.revoke("val", "agent"); w.action("agent", "spend", 1, 0, zero) }},
 		{"a grant for a key that is not an agent", CodeBadGrant, func(w *world) { w.proposeGrant(ledger.T3, "rev1", mustEnc(t, rootGrant)) }},
+		{"a require-grants proposal whose blob is not a policy", CodeBadPolicy, func(w *world) {
+			w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T4, Target: PolicyTarget, DiffHash: w.blob([]byte{1, 2})}).Encode())
+		}},
+		{"an ungranted agent when grants are required", CodeNoGrant, func(w *world) {
+			w.now = w.setRequire(true, 14*day)
+			w.ungrantedAct("agent")
+		}},
 		{"delegating to yourself", CodeBadDelegation, func(w *world) {
 			w.grantFor("agent", rootGrant)
 			w.delegate("agent", "agent", Grant{})

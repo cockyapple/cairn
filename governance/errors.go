@@ -42,6 +42,7 @@ const (
 	CodeToolNotGranted        = "tool_not_granted"
 	CodeHostNotGranted        = "host_not_granted"
 	CodeBudgetExceeded        = "budget_exceeded"
+	CodeBadPolicy             = "bad_policy"
 )
 
 // AllCodes lists every governance code; a test requires SPEC section 10 to match.
@@ -54,6 +55,7 @@ var AllCodes = []string{
 	CodeTierTooLow, CodeFutureEntry, CodeBadRevocation, CodeRevokedKey,
 	CodeBadGrant, CodeBadDelegation, CodeNotNarrower, CodeNoGrant, CodeGrantExpired,
 	CodeBadUse, CodeToolNotGranted, CodeHostNotGranted, CodeBudgetExceeded,
+	CodeBadPolicy,
 }
 
 // Error is a governance violation at a specific entry.

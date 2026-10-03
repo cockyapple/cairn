@@ -386,3 +386,47 @@ func TestHostThatCannotBeRecordedIsRefusedAndLogged(t *testing.T) {
 		t.Fatal("the action ran")
 	}
 }
+
+func (e *genv) requireGrants(t *testing.T) {
+	t.Helper()
+	p, err := e.l.ProposeRequireGrants(e.prop, true, []byte("every agent needs a grant"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []ed25519.PrivateKey{e.sec, e.r1, e.r2} {
+		if _, err := e.l.Vote(k, p, ledger.VerdictApprove, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := e.l.Activate(e.val, p); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAgentWithoutAGrantIsRefusedOnceTheLogRequiresGrants(t *testing.T) {
+	e := grantSetup(t, testGrant(), true, &gatekeeper.Agent{Allow: []string{"shell"}})
+	ctx := context.Background()
+	e.requireGrants(t)
+	if _, err := e.g.Do(ctx, "free", "shell", []byte("early")); err != nil {
+		t.Fatalf("until the rule takes effect the agent acts: %v", err)
+	}
+	e.now += 15 * day
+	before := len(e.ran)
+	_, err := e.g.Do(ctx, "free", "shell", []byte("late"))
+	if gatekeeper.ErrCode(err) != gatekeeper.CodeOutOfGrant || !strings.Contains(err.Error(), governance.CodeNoGrant) {
+		t.Fatalf("an ungranted agent must be refused: %v", err)
+	}
+	if len(e.ran) != before {
+		t.Fatal("the handler ran")
+	}
+	intent, done := e.lastAction(t, 1), e.lastAction(t, 0)
+	if intent.ActionType != governance.ActionEvent || done.ActionType != governance.ActionEvent || !strings.HasPrefix(e.lastResultOf(done), "refused\n"+gatekeeper.CodeOutOfGrant) {
+		t.Fatalf("the refusal must be an event: %+v / %q", intent, e.lastResultOf(done))
+	}
+	if !e.replays(t).RequireGrants() {
+		t.Fatal("the log does not report the rule")
+	}
+	if _, err := e.g.Do(ctx, "actor", "shell", []byte("ok")); err != nil {
+		t.Fatalf("a granted agent still acts: %v", err)
+	}
+}

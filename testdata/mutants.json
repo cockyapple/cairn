@@ -480,20 +480,20 @@
  {
   "name": "use: delegation is checked against the grant",
   "file": "governance/use.go",
-  "old": "a.ActionType == ActionDelegate || a.ActionType == ActionEvent ||",
-  "new": "a.ActionType == ActionEvent ||"
+  "old": "if a.ActionType == ActionDelegate || a.ActionType == ActionEvent {",
+  "new": "if a.ActionType == ActionEvent {"
  },
  {
   "name": "use: events are checked against the grant",
   "file": "governance/use.go",
-  "old": "a.ActionType == ActionDelegate || a.ActionType == ActionEvent ||",
-  "new": "a.ActionType == ActionDelegate ||"
+  "old": "if a.ActionType == ActionDelegate || a.ActionType == ActionEvent {",
+  "new": "if a.ActionType == ActionDelegate {"
  },
  {
   "name": "use: an unbound agent is checked",
   "file": "governance/use.go",
-  "old": "|| !r.bound[e.Author] {",
-  "new": "|| false {"
+  "old": "if !r.bound[e.Author] {",
+  "new": "if false {"
  },
  {
   "name": "use: expiry is one entry late",
@@ -626,5 +626,129 @@
   "file": "governance/grant.go",
   "old": "r.withdrawDerived(c)",
   "new": "r.withdraw(c)"
+ },
+ {
+  "name": "policy: require-grants is not enforced",
+  "file": "governance/use.go",
+  "old": "if r.requireGrants {",
+  "new": "if false {"
+ },
+ {
+  "name": "policy: an ungranted agent is refused even when grants are not required",
+  "file": "governance/use.go",
+  "old": "if r.requireGrants {",
+  "new": "if true {"
+ },
+ {
+  "name": "policy: the latest effective policy is not chosen",
+  "file": "governance/policy.go",
+  "old": "if t >= p.effective {\n\t\t\tbest = i",
+  "new": "if t >= p.effective && best < 0 {\n\t\t\tbest = i"
+ },
+ {
+  "name": "policy: takes effect before its effective time",
+  "file": "governance/policy.go",
+  "old": "if t >= p.effective {",
+  "new": "if t >= p.effective || true {"
+ },
+ {
+  "name": "policy: takes effect only after its effective time has passed",
+  "file": "governance/policy.go",
+  "old": "if t >= p.effective {",
+  "new": "if t > p.effective {"
+ },
+ {
+  "name": "policy: applied entries stay scheduled",
+  "file": "governance/policy.go",
+  "old": "r.policySched = r.policySched[best+1:]",
+  "new": "r.policySched = r.policySched[best:]",
+  "equivalent": "an applied entry kept in the list can only be chosen again when no later entry has come into effect, and then it sets the value it already set; dropping it is bookkeeping"
+ },
+ {
+  "name": "policy: an earlier policy is not dropped by a later one",
+  "file": "governance/policy.go",
+  "old": "r.policySched = r.policySched[best+1:]",
+  "new": "r.policySched = r.policySched[1:]",
+  "equivalent": "the last entry in activation order that has come into effect always wins, so an earlier entry left in the list is never the one chosen once a later one is; dropping them only bounds the list"
+ },
+ {
+  "name": "policy: activation is not scheduled",
+  "file": "governance/governance.go",
+  "old": "r.policySched = append(r.policySched, policyRec{require: prop.policy.Require, effective: a.EffectiveAfter})",
+  "new": "_ = prop.policy"
+ },
+ {
+  "name": "policy: scheduled with no delay",
+  "file": "governance/governance.go",
+  "old": "require: prop.policy.Require, effective: a.EffectiveAfter",
+  "new": "require: prop.policy.Require, effective: 0"
+ },
+ {
+  "name": "policy: not promoted after the last entry",
+  "file": "governance/governance.go",
+  "old": "r.promotePolicy(last)",
+  "new": "",
+  "equivalent": "every entry is promoted at its own time before it is applied, and a T4 activation is delayed 14 days, so no policy can come into effect between the last entry and the end of the replay; the call mirrors the root-grant promotion beside it"
+ },
+ {
+  "name": "policy: not promoted during replay",
+  "file": "governance/governance.go",
+  "old": "r.promotePolicy(e.Time)",
+  "new": ""
+ },
+ {
+  "name": "policy: state does not report the setting",
+  "file": "governance/governance.go",
+  "old": "r.st.requireGrants = r.requireGrants",
+  "new": ""
+ },
+ {
+  "name": "policy: tier below T4 allowed",
+  "file": "governance/governance.go",
+  "old": "case targetValidators, targetConstitution, targetGatekeeper, PolicyTarget:",
+  "new": "case targetValidators, targetConstitution, targetGatekeeper:"
+ },
+ {
+  "name": "policy: bad blob accepted",
+  "file": "governance/governance.go",
+  "old": "return fail(e.Height, CodeBadPolicy, err.Error())",
+  "new": "_ = err"
+ },
+ {
+  "name": "policy: version not checked",
+  "file": "governance/policy.go",
+  "old": "v != policyVersion",
+  "new": "false"
+ },
+ {
+  "name": "policy: flag range not checked",
+  "file": "governance/policy.go",
+  "old": "case f != 0:",
+  "new": "case false:"
+ },
+ {
+  "name": "policy: trailing bytes accepted",
+  "file": "governance/policy.go",
+  "old": "if err := r.Done(); err != nil {\n\t\treturn RequirePolicy{}, err",
+  "new": "if err := r.Done(); false {\n\t\treturn RequirePolicy{}, err"
+ },
+ {
+  "name": "policy: encoding writes the wrong flag",
+  "file": "governance/policy.go",
+  "old": "if p.Require {\n\t\tw.U8(1)",
+  "new": "if !p.Require {\n\t\tw.U8(1)"
+ },
+ {
+  "name": "gatekeeper: a record is not retried as an event when grants are required",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "|| (u == nil && c == governance.CodeNoGrant) {",
+  "new": "{"
+ },
+ {
+  "name": "gatekeeper: an action is retried as an event when grants are required",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "(u == nil && c == governance.CodeNoGrant)",
+  "new": "c == governance.CodeNoGrant",
+  "equivalent": "retrying an agent action in the bound form writes a Use blob, which the replay refuses with the same no_grant for an agent that never held a grant; the retry is only ever useful for a record, and the narrower test says so"
  }
 ]
