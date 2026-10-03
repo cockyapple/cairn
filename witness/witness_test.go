@@ -862,7 +862,7 @@ func TestRunSignsAndReportsOnce(t *testing.T) {
 	go func() {
 		r.witness().Run(ctx, 5*time.Millisecond, func(f string, a ...any) {
 			mu.Lock()
-			lines = append(lines, strings.TrimSpace(strings.ReplaceAll(f, "%", "")))
+			lines = append(lines, fmt.Sprintf(f, a...))
 			mu.Unlock()
 		})
 		close(done)

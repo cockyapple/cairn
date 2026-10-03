@@ -335,3 +335,7 @@ broke `prev_hash` while heights stayed right, none exercised `MaxEntries`, none 
 exact refusal for a partial entry, and none ran at an epoch above 0, so the epoch passed to
 `NewCheckpoint` could have been wrong with every test green. Tests were added for each, and
 two dead defensive lines were deleted rather than tested. All mutants are now killed.
+Found by CI, not by the audit: under the race detector's slowdown, stopping `Run` while a
+cycle was in flight logged "not signed: context canceled" as if the server had refused. `Run`
+now returns silently once its context is done. Local test runs had no `-race`, which is why
+this reached CI; local runs now use a CGO-enabled image for `-race`.

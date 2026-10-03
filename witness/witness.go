@@ -516,6 +516,9 @@ func (w *Witness) Run(ctx context.Context, interval time.Duration, logf func(for
 	var lastComplete bool
 	for {
 		res, err := w.Cycle(ctx, 0)
+		if ctx.Err() != nil {
+			return
+		}
 		switch {
 		case err != nil:
 			code := Code(err)
