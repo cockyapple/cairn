@@ -8,8 +8,8 @@ runs described here are in `docs/evidence/`.
 
 | File | Command | Result |
 |---|---|---|
-| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 308 top-level tests passed, 0 failed, 0 skipped; 208 subtests passed. Every package with tests reports `ok`. |
-| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about four minutes) | 141 mutants: 133 killed, 8 equivalent, 0 survived, 0 invalid. |
+| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 321 top-level tests passed, 0 failed, 0 skipped; 212 subtests passed. Every package with tests reports `ok`. |
+| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about four minutes) | 157 mutants: 149 killed, 8 equivalent, 0 survived, 0 invalid. |
 
 Both ran in the pinned `golang:1.24-alpine` image (Go 1.24.13). The race run needs cgo, so it
 installs `build-base` first. Each file records the commit it ran on. The runs were made on the
@@ -77,11 +77,11 @@ because they do not change what the witness accepts or refuses.
 
 ## What the numbers do not show
 
-- **A hundred and forty-one mutants is a small sample.** They were written by hand, mostly against the witness
-  (32 of 141) and the grant, delegation, use and policy code (70), because that is where the earlier
+- **A hundred and fifty-seven mutants is a small sample.** They were written by hand, mostly against the witness
+  (32 of 157) and the grant, delegation, use, policy and opening-store code (over 80), because that is where the earlier
   audits found gaps and where the newest code is. Packages with no entry in
   the list, such as `ledger` and `wire`, have not been mutation tested by this tool at all. A
-  clean run says these 141 changes are noticed; it says nothing about changes nobody wrote.
+  clean run says these 157 changes are noticed; it says nothing about changes nobody wrote.
 - **The mutants are the author's own.** They were chosen by the same person who wrote the
   tests. A tool that generated mutants mechanically would be a stronger check. This is an
   honest start, not a mutation score.

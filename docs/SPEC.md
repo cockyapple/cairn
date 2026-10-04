@@ -413,12 +413,27 @@ A gatekeeper in this mode writes:
 
 A use blob is published only if the log takes the entry. The commitments are
 published; the openings are not, and are not on the log
-server. They are the gatekeeper's to keep. What stays public: the action type
+server. They are the gatekeeper's to keep. It hands each one to its opening
+store before it appends the entry that commits to it: if the store fails, the
+entry is not written and, for an intent, the action does not run. Whether the
+opening then survives a crash is the store's promise, not the gatekeeper's: the
+default store is in memory, and the directory store syncs each file and its
+directory. If the store fails on a result, the action has already run; the
+completion is not written and the intent stays open until it can be. An opening
+for an entry the log then refuses is deleted. What stays public: the action type
 (or `cairn/event`), the host and cost of a bound agent's action, the timing, the
 agent and the chain. What is withheld: the arguments, the results and, because a
 refusal is a result, the refusal's code and detail. A verifier can check that
 every disclosed opening matches the log; it cannot check that an opening exists
 for a commitment nobody discloses.
+
+To disclose, the holder shows an opening. The checker confirms it with the blob
+hash (`governance.CheckOpening`) and then finds where the commitment appears
+(`governance.Locate`): as the `args_hash` or `result_hash` of an ACTION, or as the
+`args_commitment` of a published use blob. An opening is genuine for exactly the
+entries Locate returns. An empty result means the commitment was never made on
+this log only if the blobs given are the complete set the replay already needs
+(every ACTION payload and every use blob); Locate skips what it cannot read.
 
 ### 10.5 What is not enforced, and why
 

@@ -51,7 +51,7 @@ separate machine, and the governance state machine that enforces roles, tiers, t
 and freeze (invariants I1, I3 and I11 are enforced, and a bound agent's actions are held to its grant; I4 only for the require-grants switch: SPEC 10.5).
 Capability grants, delegation and grant enforcement on replay (tools, hosts, a cumulative budget shared down the delegation chain, expiry) are built, with an optional T4 rule that requires every agent to hold a grant (SPEC 10.3.2 to 10.3.4); the formats for model
 identity and agent suspension are not started. Fuzzing
-of every decoder (8 targets, 20 seconds each in CI; short runs, not a soak).
+of every decoder (9 targets, 20 seconds each in CI; short runs, not a soak).
 *Done when* the tamper suite passes, the verifier is under budget and a witness catches a
 forced split view.
 
@@ -99,9 +99,13 @@ provably never loads.
   a salted commitment to each argument blob, result and gatekeeper record, and the gatekeeper
   keeps the opening (`Gatekeeper.Opening`, `governance.CheckOpening`). A bound agent's use blob
   is published as version 2 (host, cost, args commitment) so the grant is still enforced.
-  Governance entries (proposals, votes, grants) still publish their blobs, because replay reads them; so does a bound agent's use blob. **Not built:**
-  durable storage for openings (they live in memory), and a disclosure protocol: how an agent
-  proves an opening to an auditor is left to the operator.
+  Governance entries (proposals, votes, grants) still publish their blobs, because replay reads them; so does a bound agent's use blob. Openings are kept
+  in an `OpeningStore` (`MemoryOpenings`, or `DirOpenings`, one synced file per commitment):
+  the gatekeeper stores an opening before it appends the entry that commits to it, and does
+  not act if the store fails. `governance.Locate` finds where a disclosed opening's commitment
+  sits on the log. **Not built:** backup or replication of the store, an authenticated
+  channel for handing an opening to an auditor, and a way to prove that an opening exists for
+  a commitment nobody discloses.
 - **An eval runner service**, still owed from the original scope.
 
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
@@ -165,7 +169,7 @@ read each of those claims as a design goal.
 
 ## Testing evidence still owed
 
-The mutation list (`testdata/mutants.json`, run in CI) has 141 hand-written mutants, 32 of them in
+The mutation list (`testdata/mutants.json`, run in CI) has 157 hand-written mutants, 32 of them in
 `witness`. `ledger`, `wire` and `note` have none, and the mutants are not generated mechanically.
 See [docs/EVIDENCE.md](docs/EVIDENCE.md) for what the numbers do and do not show.
 

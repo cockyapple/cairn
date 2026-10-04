@@ -13,9 +13,9 @@ import (
 
 func (e *genv) opened(t *testing.T, commit ledger.Hash) string {
 	t.Helper()
-	o, ok := e.g.Opening(commit)
-	if !ok {
-		t.Fatalf("no opening for %x", commit[:4])
+	o, err := e.g.Opening(commit)
+	if err != nil {
+		t.Fatalf("no opening for %x: %v", commit[:4], err)
 	}
 	p, err := governance.CheckOpening(commit, o)
 	if err != nil {

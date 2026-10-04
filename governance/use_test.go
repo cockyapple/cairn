@@ -1,6 +1,7 @@
 package governance
 
 import (
+	"bytes"
 	"math"
 	"testing"
 
@@ -392,4 +393,21 @@ func TestCommittedUseRoundTripsAndIsJudgedByHostAndCost(t *testing.T) {
 	if _, err := DecodeUse(append(u.Encode(), 0)); err == nil {
 		t.Fatal("trailing byte accepted")
 	}
+}
+
+func FuzzDecodeUse(f *testing.F) {
+	c := ledger.BlobHash([]byte("c"))
+	f.Add(Use{Host: "a.example", Cost: 5, Args: []byte("x")}.Encode())
+	f.Add(Use{Host: "a.example", Cost: 5, Commit: &c}.Encode())
+	f.Add([]byte{})
+	f.Add([]byte{2})
+	f.Fuzz(func(t *testing.T, b []byte) {
+		u, err := DecodeUse(b)
+		if err != nil {
+			return
+		}
+		if again := u.Encode(); !bytes.Equal(again, b) {
+			t.Fatalf("a decoded use must re-encode to the same bytes: %x != %x", again, b)
+		}
+	})
 }

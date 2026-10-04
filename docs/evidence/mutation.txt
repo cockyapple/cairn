@@ -147,5 +147,21 @@ killed     gatekeeper   hash-only: result opening not kept
 killed     gatekeeper   hash-only: args opening not kept
 killed     gatekeeper   hash-only: completion follows the live HashOnly flag
 killed     review       hash-only: rejected attempt leaves its use blob
+killed     gatekeeper   openings: intent proceeds when its opening cannot be stored
+killed     gatekeeper   openings: completion proceeds when its result opening cannot be stored
+killed     gatekeeper   openings: refused intent keeps its opening
+killed     gatekeeper   openings: refused completion keeps its result opening
+killed     gatekeeper   openings: directory store skips the hash check on Put
+killed     gatekeeper   openings: directory store returns a corrupt file
+killed     gatekeeper   openings: directory store never renames into place
+killed     gatekeeper   openings: directory is world-readable
+killed     gatekeeper   openings: memory store keeps the caller's buffer
+killed     gatekeeper   openings: a missing file is reported as an I/O failure
+killed     governance   locate: ignores a result commitment
+killed     governance   locate: ignores an args commitment
+killed     governance   locate: ignores a use blob's commitment
+killed     governance   locate: reads entries that are not actions
+killed     gatekeeper   openings: memory store skips the hash check on Put
+killed     gatekeeper   openings: existing directory may be open to other users
 
-141 mutants: 8 equivalent 133 killed
+157 mutants: 8 equivalent 149 killed

@@ -826,20 +826,20 @@
  {
   "name": "hash-only: use blob not published",
   "file": "gatekeeper/gatekeeper.go",
-  "old": "h, hash, err := g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &wf.commit}.Encode())",
-  "new": "h, err := g.log.IntentHash(a.Key, wf.typ, wf.commit)\n\t\thash := wf.commit"
+  "old": "h, hash, err = g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &commit}.Encode())",
+  "new": "h, err = g.log.IntentHash(a.Key, wf.typ, commit)\n\t\thash = commit"
  },
  {
   "name": "hash-only: result opening not kept",
   "file": "gatekeeper/gatekeeper.go",
-  "old": "g.openings[commit] = opening",
-  "new": "_ = opening"
+  "old": "if err := g.Store.Put(commit, opening); err != nil {\n\t\treturn fmt.Errorf",
+  "new": "_ = opening\n\tif err := error(nil); err != nil {\n\t\treturn fmt.Errorf"
  },
  {
   "name": "hash-only: args opening not kept",
   "file": "gatekeeper/gatekeeper.go",
-  "old": "if wf.opening != nil {",
-  "new": "if false {"
+  "old": "if err := g.Store.Put(commit, opening); err != nil {\n\t\treturn ledger.Hash{}, wf,",
+  "new": "_ = opening\n\tif err := error(nil); err != nil {\n\t\treturn ledger.Hash{}, wf,"
  },
  {
   "name": "hash-only: completion follows the live HashOnly flag",
@@ -852,5 +852,101 @@
   "file": "review/action.go",
   "old": "if err != nil && !had {",
   "new": "if false && !had {"
+ },
+ {
+  "name": "openings: intent proceeds when its opening cannot be stored",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if err := g.Store.Put(commit, opening); err != nil {\n\t\treturn ledger.Hash{}, wf,",
+  "new": "if err := g.Store.Put(commit, opening); false && err != nil {\n\t\treturn ledger.Hash{}, wf,"
+ },
+ {
+  "name": "openings: completion proceeds when its result opening cannot be stored",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if err := g.Store.Put(commit, opening); err != nil {\n\t\treturn fmt.Errorf",
+  "new": "if err := g.Store.Put(commit, opening); false && err != nil {\n\t\treturn fmt.Errorf"
+ },
+ {
+  "name": "openings: refused intent keeps its opening",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if err != nil {\n\t\tg.Store.Delete(commit) // best effort: the entry is not on the log\n\t}\n\treturn h, wf, err",
+  "new": "if false {\n\t\tg.Store.Delete(commit) // best effort: the entry is not on the log\n\t}\n\treturn h, wf, err"
+ },
+ {
+  "name": "openings: refused completion keeps its result opening",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "g.Store.Delete(commit) // best effort: the entry is not on the log\n\t\treturn err",
+  "new": "return err"
+ },
+ {
+  "name": "openings: directory store skips the hash check on Put",
+  "file": "gatekeeper/openings.go",
+  "old": "if ledger.BlobHash(o) != c {\n\t\treturn errMismatch\n\t}\n\tf, err := os.CreateTemp",
+  "new": "if false {\n\t\treturn errMismatch\n\t}\n\tf, err := os.CreateTemp"
+ },
+ {
+  "name": "openings: directory store returns a corrupt file",
+  "file": "gatekeeper/openings.go",
+  "old": "if ledger.BlobHash(o) != c {\n\t\treturn nil, fmt.Errorf",
+  "new": "if false {\n\t\treturn nil, fmt.Errorf"
+ },
+ {
+  "name": "openings: directory store never renames into place",
+  "file": "gatekeeper/openings.go",
+  "old": "err = os.Rename(tmp, s.path(c))",
+  "new": "err = nil"
+ },
+ {
+  "name": "openings: directory is world-readable",
+  "file": "gatekeeper/openings.go",
+  "old": "os.MkdirAll(dir, 0o700)",
+  "new": "os.MkdirAll(dir, 0o755)"
+ },
+ {
+  "name": "openings: memory store keeps the caller's buffer",
+  "file": "gatekeeper/openings.go",
+  "old": "s.m[c] = bytes.Clone(o)",
+  "new": "s.m[c] = o"
+ },
+ {
+  "name": "openings: a missing file is reported as an I/O failure",
+  "file": "gatekeeper/openings.go",
+  "old": "if errors.Is(err, os.ErrNotExist) {\n\t\treturn nil, ErrNoOpening",
+  "new": "if false {\n\t\treturn nil, ErrNoOpening"
+ },
+ {
+  "name": "locate: ignores a result commitment",
+  "file": "governance/opening.go",
+  "old": "if a.ResultHash == commit {",
+  "new": "if false {"
+ },
+ {
+  "name": "locate: ignores an args commitment",
+  "file": "governance/opening.go",
+  "old": "if a.ArgsHash == commit {",
+  "new": "if false {"
+ },
+ {
+  "name": "locate: ignores a use blob's commitment",
+  "file": "governance/opening.go",
+  "old": "u.Commit != nil && *u.Commit == commit",
+  "new": "u.Commit != nil && *u.Commit != commit"
+ },
+ {
+  "name": "locate: reads entries that are not actions",
+  "file": "governance/opening.go",
+  "old": "if e.Kind != ledger.KindAction {\n\t\t\tcontinue",
+  "new": "if false {\n\t\t\tcontinue"
+ },
+ {
+  "name": "openings: memory store skips the hash check on Put",
+  "file": "gatekeeper/openings.go",
+  "old": "if ledger.BlobHash(o) != c {\n\t\treturn errMismatch\n\t}\n\ts.mu.Lock()",
+  "new": "s.mu.Lock()"
+ },
+ {
+  "name": "openings: existing directory may be open to other users",
+  "file": "gatekeeper/openings.go",
+  "old": "if fi.Mode().Perm()&0o077 != 0 {",
+  "new": "if false {"
  }
 ]

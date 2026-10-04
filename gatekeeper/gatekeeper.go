@@ -133,11 +133,10 @@ type pendingCompletion struct{ blob []byte }
 type wireForm struct {
 	typ  string
 	args []byte
-	// For a hash-only agent: the hash the intent carries, and the opening that
-	// stands behind it, held until the intent is known to be on the log.
-	hash    *ledger.Hash
-	opening []byte
-	commit  ledger.Hash
+	// For a hash-only agent: the hash the intent carries and the commitment to its
+	// payload, whose opening is in the gatekeeper's Store.
+	hash   *ledger.Hash
+	commit ledger.Hash
 }
 
 // use is what a real action declares about itself for the grant check.
@@ -172,7 +171,10 @@ type Gatekeeper struct {
 	types    map[string]*MessageType
 	boxes    map[string][]Message
 	waiting  map[ledger.Hash]*waiting
-	openings map[ledger.Hash][]byte // withheld payloads of hash-only agents, by commitment
+
+	// Store keeps the openings of hash-only agents. New sets a MemoryOpenings; replace
+	// it before the first action to keep them across restarts (see DirOpenings).
+	Store OpeningStore
 
 	View    View
 	Timeout time.Duration    // per action; zero means one minute
@@ -185,21 +187,21 @@ func New(l *review.Log) *Gatekeeper {
 	return &Gatekeeper{
 		log: l, agents: map[string]*Agent{}, handlers: map[string]Handler{},
 		types: map[string]*MessageType{}, boxes: map[string][]Message{}, waiting: map[ledger.Hash]*waiting{},
-		openings: map[ledger.Hash][]byte{},
+		Store: &MemoryOpenings{},
 	}
 }
 
 // Opening returns the withheld payload (salt first) behind a commitment that a
 // hash-only agent put on the log: an args commitment, from the intent's args_hash
 // or, for an agent that holds a grant, from its Use blob, or a result_hash.
-// governance.CheckOpening verifies it and strips the salt. The openings live in
-// memory for the life of the gatekeeper; an operator who needs them longer must
-// copy them out, because the log does not hold them and cannot rebuild them.
-func (g *Gatekeeper) Opening(commit ledger.Hash) ([]byte, bool) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	o, ok := g.openings[commit]
-	return bytes.Clone(o), ok
+// governance.CheckOpening verifies it and strips the salt. It returns
+// ErrNoOpening if the store has none. By default openings live in memory and are
+// lost on restart; set Store to a DirOpenings (or any OpeningStore) before the
+// first action to keep them, because the log cannot rebuild them.
+func (g *Gatekeeper) Opening(commit ledger.Hash) ([]byte, error) {
+	// No g.mu: a store is safe for concurrent use, and a disk read here must not
+	// stall every agent.
+	return g.Store.Get(commit)
 }
 
 func (g *Gatekeeper) AddAgent(a *Agent) error {
@@ -294,9 +296,6 @@ func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte, u *use) (l
 		return h, fmt.Errorf("%w: %w", ErrNotLogged, err)
 	}
 	a.open = wf
-	if wf.opening != nil {
-		g.openings[wf.commit] = wf.opening
-	}
 	return h, nil
 }
 
@@ -314,20 +313,30 @@ func (g *Gatekeeper) writeIntent(a *Agent, actionType string, args []byte, u *us
 		h, err := g.log.Intent(a.Key, wf.typ, wf.args)
 		return h, wf, err
 	}
-	var err error
-	if wf.opening, wf.commit, err = governance.NewOpening(payload); err != nil {
+	opening, commit, err := governance.NewOpening(payload)
+	if err != nil {
 		return ledger.Hash{}, wf, err
 	}
-	wf.args = nil
+	wf.args, wf.commit = nil, commit
+	// The opening is stored before the entry that commits to it, so a crash
+	// cannot leave a commitment on the log that nothing can open.
+	if err := g.Store.Put(commit, opening); err != nil {
+		return ledger.Hash{}, wf, fmt.Errorf("gatekeeper: storing the opening: %w", err)
+	}
+	var h ledger.Hash
 	if bound && u != nil {
 		// The replay reads the host and cost from this blob, so it is published
 		// (only if the log takes the entry); the arguments it stands for are not.
-		h, hash, err := g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &wf.commit}.Encode())
+		var hash ledger.Hash
+		h, hash, err = g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &commit}.Encode())
 		wf.hash = &hash
-		return h, wf, err
+	} else {
+		wf.hash = &wf.commit
+		h, err = g.log.IntentHash(a.Key, wf.typ, commit)
 	}
-	wf.hash = &wf.commit
-	h, err := g.log.IntentHash(a.Key, wf.typ, wf.commit)
+	if err != nil {
+		g.Store.Delete(commit) // best effort: the entry is not on the log
+	}
 	return h, wf, err
 }
 
@@ -350,10 +359,13 @@ func (g *Gatekeeper) complete(a *Agent, result []byte) error {
 	if err != nil {
 		return err
 	}
+	if err := g.Store.Put(commit, opening); err != nil {
+		return fmt.Errorf("gatekeeper: storing the opening: %w", err)
+	}
 	if _, err := g.log.CompleteHash(a.Key, a.open.typ, *a.open.hash, commit); err != nil {
+		g.Store.Delete(commit) // best effort: the entry is not on the log
 		return err
 	}
-	g.openings[commit] = opening
 	a.open = nil
 	return nil
 }

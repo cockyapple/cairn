@@ -37,3 +37,47 @@ func CheckOpening(commit ledger.Hash, opening []byte) ([]byte, error) {
 	}
 	return append([]byte(nil), opening[SaltSize:]...), nil
 }
+
+// Location is where a commitment appears on the log.
+type Location struct {
+	Height uint64
+	// Field is "args" (the intent's or completion's args_hash), "use" (the args
+	// commitment inside a published use blob) or "result".
+	Field string
+}
+
+// Locate lists every place in entries where commit appears as an ACTION's args
+// commitment, use-blob commitment or result commitment. A verifier that is shown
+// an opening calls CheckOpening and then Locate: the opening is genuine only for
+// the entries Locate returns. Entries whose payload blob is missing or is not an
+// action are skipped, so an empty result is conclusive only for a complete set of
+// blobs.
+func Locate(entries []ledger.Entry, blobs map[ledger.Hash][]byte, commit ledger.Hash) []Location {
+	var out []Location
+	for i := range entries {
+		e := &entries[i]
+		if e.Kind != ledger.KindAction {
+			continue
+		}
+		pb, ok := blobs[e.PayloadHash]
+		if !ok {
+			continue
+		}
+		a, err := ledger.DecodeAction(pb)
+		if err != nil {
+			continue
+		}
+		if a.ArgsHash == commit {
+			out = append(out, Location{e.Height, "args"})
+		}
+		if ub, ok := blobs[a.ArgsHash]; ok {
+			if u, err := DecodeUse(ub); err == nil && u.Commit != nil && *u.Commit == commit {
+				out = append(out, Location{e.Height, "use"})
+			}
+		}
+		if a.ResultHash == commit {
+			out = append(out, Location{e.Height, "result"})
+		}
+	}
+	return out
+}
