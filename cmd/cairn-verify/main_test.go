@@ -110,6 +110,9 @@ func TestVerifiesALawfulLog(t *testing.T) {
 			t.Errorf("output missing %q:\n%s", want, out)
 		}
 	}
+	if !strings.HasSuffix(out, "not proof of what any agent did, that its payloads are true, or that any agent is safe.\n") {
+		t.Errorf("a pass must end with the scope notice:\n%s", out)
+	}
 }
 
 func TestChainOnlyWithoutBlobs(t *testing.T) {
@@ -118,6 +121,9 @@ func TestChainOnlyWithoutBlobs(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "skipped governance") {
 		t.Fatalf("exit %d: %s", code, out)
 	}
+	if !strings.Contains(out, "That is not proof of lawful governance") {
+		t.Errorf("a chain-only pass must say governance was not checked:\n%s", out)
+	}
 }
 
 func TestGovernanceViolationIsNamed(t *testing.T) {
@@ -125,6 +131,9 @@ func TestGovernanceViolationIsNamed(t *testing.T) {
 	code, out := do("-entries", f.entries, "-blobs", f.blobs)
 	if code != 1 || !strings.Contains(out, "FAIL unauthorized_author") {
 		t.Fatalf("exit %d: %s", code, out)
+	}
+	if strings.Contains(out, "note:") {
+		t.Errorf("a failure must not print the scope notice:\n%s", out)
 	}
 }
 
@@ -239,6 +248,9 @@ func TestVerifiesANote(t *testing.T) {
 	code, out := do("-entries", f.entries, "-blobs", f.blobs, "-note", n, "-origin", "cairn.test/log")
 	if code != 0 || !strings.Contains(out, "ok note: size 2, 1 validator signatures and 0 witness") {
 		t.Fatalf("exit %d: %s", code, out)
+	}
+	if !strings.Contains(out, "note: this log is authentic") {
+		t.Errorf("a note pass must end with the scope notice:\n%s", out)
 	}
 }
 

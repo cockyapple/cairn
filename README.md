@@ -197,9 +197,14 @@ Or from files, with the governance rules checked as well:
 
 ```sh
 go run ./cmd/cairn-verify -entries log.bin -blobs payloads/ -checkpoint cp.bin
-# ok chain: ...   ok governance: ...   ok checkpoint: ...   (exit 0)
+# ok chain: ...   ok governance: ...   ok checkpoint: ...   note: ...   (exit 0)
 # FAIL unauthorized_author: ...                              (exit 1)
 ```
+
+A pass ends with a one-line `note:` on stdout that says what it does not show: the log is
+authentic and followed its rules. That is not proof of what any agent did, that its payloads
+are true, or that any agent is safe. Scripts should read the exit code, not the text. See
+[docs/ABUSE-CASES.md](docs/ABUSE-CASES.md).
 
 Errors carry stable string codes (`bad_signature`, `below_quorum`, ...) that the
 vectors assert exactly, so another language can match them.
@@ -210,6 +215,7 @@ vectors assert exactly, so another language can match them.
 |------|------|
 | [`docs/SPEC.md`](docs/SPEC.md) | Wire format and verification rules, v1 |
 | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) | Assets, adversaries, mitigations and their status |
+| [`docs/ABUSE-CASES.md`](docs/ABUSE-CASES.md) | 36 ways the framework could be abused or misused, what to watch for, and what cannot be prevented |
 | [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) | Change tiers and the twelve invariants |
 | [`docs/INJECTION-DEFENSE.md`](docs/INJECTION-DEFENSE.md) | How prompt injection is contained |
 | [`docs/MODELS-AND-FLEETS.md`](docs/MODELS-AND-FLEETS.md) | Any LLM, and many agents at once |

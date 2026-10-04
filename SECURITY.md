@@ -29,6 +29,11 @@ We aim to acknowledge within 5 days and to agree a fix and disclosure timeline w
 - Attacks that require breaking SHA-256 or Ed25519.
 - Claims the docs already label as not yet enforced (see README Status).
 
+Misuse that follows the rules (a passing verifier used as a safety claim, weak decentralisation,
+unwanted content in a blob) is catalogued in [docs/ABUSE-CASES.md](docs/ABUSE-CASES.md). A new
+way to do that is welcome as an issue; it is not a vulnerability report unless it defeats a
+guarantee the docs state.
+
 ## Verifying downloads
 
 The core has no third-party dependencies. `go.mod` contains only the module line, and

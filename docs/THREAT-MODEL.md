@@ -56,6 +56,23 @@ are listed by capability, not name.
 | Partial signature state, gatekeeper state and taint lost on restart | A4 | The log and the witness's state file are durable | Partial checkpoint signatures, per-agent gatekeeper state and session taint are in memory; the server and gatekeeper read their configuration once at start |
 | Test keys used in production | all | Test keys come from public seeds and are documented as such | Documented |
 
+## Misuse and non-goals
+
+The table above is about attackers. A separate question is how the framework could be
+**misused** by people who follow its rules: a clean log used as cover, weak decentralisation
+that still verifies, a passing verifier sold as a safety verdict. [ABUSE-CASES.md](ABUSE-CASES.md)
+catalogues 36 such cases (IDs C-01 to O-01), says for each whether the docs already covered it,
+what to watch for, and a mitigation that does not change the core. It also lists what Cairn
+cannot prevent by design. The short version:
+
+- A passing `cairn-verify` means the log is authentic and followed its governance rules. It does
+  not mean an agent is safe, that its payloads are true, or that reviewers were independent.
+  The tool now prints that on every success.
+- Cairn does not make a captured quorum, a rubber-stamping reviewer or an off-gatekeeper action
+  visible. It makes what *was* recorded hard to change.
+- Metadata on a public log, and anything put in an append-only blob, is public. Withheld payloads
+  are the tool for private data; there is no erasure.
+
 ## Out of scope for v1
 
 Side channels on validator hardware, censorship by the network layer, compromise

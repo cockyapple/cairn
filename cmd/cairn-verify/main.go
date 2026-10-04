@@ -102,7 +102,7 @@ func run(args []string, out, errw io.Writer) int {
 			fmt.Fprintln(errw, "cairn-verify: -checkpoint and -note need -blobs to learn the trust configuration")
 			return 2
 		}
-		return 0
+		return scopeNotice(out, false)
 	}
 	blobs, err := loadBlobs(*blobsDir)
 	if err != nil {
@@ -151,9 +151,11 @@ func run(args []string, out, errw io.Writer) int {
 		fmt.Fprintf(out, "ok checkpoint: size %d, epoch %d, %d signatures meet quorum and witness threshold\n", sc.Size, sc.Epoch, len(sc.Sigs))
 	}
 	if *notePath != "" {
-		return verifyNote(out, errw, *notePath, *origin, witnesses, st, entries)
+		if code := verifyNote(out, errw, *notePath, *origin, witnesses, st, entries); code != 0 {
+			return code
+		}
 	}
-	return 0
+	return scopeNotice(out, true)
 }
 
 func verifyNote(out, errw io.Writer, path, origin string, witnesses witnessFlag, st *governance.State, entries []ledger.Entry) int {
@@ -243,4 +245,15 @@ func loadBlobs(dir string) (governance.MapBlobs, error) {
 		m[ledger.BlobHash(b)] = b
 	}
 	return m, nil
+}
+
+// scopeNotice ends every successful run by saying what a pass does not show,
+// so a green result is not read as a verdict on the agent.
+func scopeNotice(out io.Writer, governed bool) int {
+	if governed {
+		fmt.Fprintln(out, "note: this log is authentic and followed its governance rules. That is not proof of what any agent did, that its payloads are true, or that any agent is safe.")
+	} else {
+		fmt.Fprintln(out, "note: only the chain's hashes and signatures were checked. That is not proof of lawful governance, of what any agent did, or that any agent is safe.")
+	}
+	return 0
 }
