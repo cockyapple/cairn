@@ -75,8 +75,8 @@ entry precedes its completion, but nothing yet proves a gatekeeper waited for
 it. **I2** holds only to the extent that consumers read configuration from the
 ledger, which no code here does yet.
 
-Not enforced by any code today: **I4** (it needs the ledger to understand what a
-change means; only tier minimums and reserved T4 targets are mechanical), **I5,
+Enforced for one target only: **I4**, on the require-grants switch (on at T3 or T4, off at T4). For every other target it needs the ledger to understand what a
+change means, so only tier minimums and reserved T4 targets are mechanical. Not enforced by any code today: **I5,
 I6, I8, I9, I12** (gatekeeper and agent runtime, Phase 2 and later). **I11** and the grant
 check are enforced on replay, with stated limits: an agent that has never held a
 grant is not checked, `host` and `cost` are declared by the writer, and an action

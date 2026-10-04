@@ -8,7 +8,7 @@ import (
 
 const (
 	// PolicyTarget is the proposal target that switches the require-grants rule.
-	// It can only change at tier T4.
+	// Switching it on needs tier T3 or T4; switching it off needs T4.
 	PolicyTarget = "cairn/policy/require-grants"
 
 	policyVersion = 1

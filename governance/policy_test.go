@@ -10,7 +10,11 @@ import (
 // effectiveIn seconds after it was filed (never less than the T4 delay), and
 // returns the time it takes effect. It does not move the clock.
 func (w *world) setRequire(on bool, effectiveIn uint64) uint64 {
-	pr := ledger.Proposal{Tier: ledger.T4, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: on}.Encode())}
+	return w.setRequireAt(ledger.T4, on, effectiveIn)
+}
+
+func (w *world) setRequireAt(tier ledger.Tier, on bool, effectiveIn uint64) uint64 {
+	pr := ledger.Proposal{Tier: tier, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: on}.Encode())}
 	h := w.put(ledger.KindProposal, "prop", pr.Encode())
 	pt := w.timeOfLast()
 	var votes []ledger.Hash
@@ -68,6 +72,21 @@ func TestRequireGrantsHoldsAnAgentThatNeverHadOne(t *testing.T) {
 	w.ungrantedAct("agent2")
 	if _, err := w.replay(); ErrCode(err) != CodeNoGrant {
 		t.Fatalf("at the effective time an ungranted agent is refused: %v", err)
+	}
+}
+
+func TestRequireGrantsCanBeSwitchedOnAtT3ButNotOffAtT3(t *testing.T) {
+	w := newWorld(t)
+	w.grantFor("agent", rootGrant)
+	w.now = w.setRequireAt(ledger.T3, true, 7*day)
+	w.ungrantedAct("agent2")
+	if _, err := w.replay(); ErrCode(err) != CodeNoGrant {
+		t.Fatalf("a T3 switch-on holds an ungranted agent: %v", err)
+	}
+	w.entries = w.entries[:len(w.entries)-1]
+	w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T3, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: false}.Encode())}).Encode())
+	if _, err := w.replay(); ErrCode(err) != CodeReservedTarget {
+		t.Fatalf("a T3 switch-off is refused: %v", err)
 	}
 }
 
@@ -168,9 +187,15 @@ func TestRequirePolicyProposalRules(t *testing.T) {
 		code string
 	}{
 		{"a well formed T4 proposal", func(w *world) { w.setRequire(true, 14*day) }, ""},
-		{"below T4", func(w *world) {
-			w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T3, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: true}.Encode())}).Encode())
+		{"requiring grants at T3", func(w *world) { w.setRequireAt(ledger.T3, true, 7*day) }, ""},
+		{"requiring grants below T3", func(w *world) {
+			w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T2, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: true}.Encode())}).Encode())
 		}, CodeReservedTarget},
+		{"relaxing at T4", func(w *world) { w.setRequire(false, 14*day) }, ""},
+		{"relaxing at T3", func(w *world) {
+			w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T3, Target: PolicyTarget, DiffHash: w.blob(RequirePolicy{Require: false}.Encode())}).Encode())
+		}, CodeReservedTarget},
+		{"requiring at T3 with a T3 delay too short", func(w *world) { w.setRequireAt(ledger.T3, true, 6*day) }, CodeDelayTooShort},
 		{"a blob that is not a policy", func(w *world) {
 			w.put(ledger.KindProposal, "prop", (&ledger.Proposal{Tier: ledger.T4, Target: PolicyTarget, DiffHash: w.blob([]byte{1, 2})}).Encode())
 		}, CodeBadPolicy},

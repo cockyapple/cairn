@@ -8,8 +8,8 @@ runs described here are in `docs/evidence/`.
 
 | File | Command | Result |
 |---|---|---|
-| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 297 top-level tests passed, 0 failed, 0 skipped; 201 subtests passed. Every package with tests reports `ok`. |
-| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about four minutes) | 124 mutants: 116 killed, 8 equivalent, 0 survived, 0 invalid. |
+| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 298 top-level tests passed, 0 failed, 0 skipped; 205 subtests passed. Every package with tests reports `ok`. |
+| `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about four minutes) | 129 mutants: 121 killed, 8 equivalent, 0 survived, 0 invalid. |
 
 Both ran in the pinned `golang:1.24-alpine` image (Go 1.24.13). The race run needs cgo, so it
 installs `build-base` first. Each file records the commit it ran on. The runs were made on the
@@ -64,7 +64,7 @@ most worth checking, because "equivalent" is a claim the author makes about thei
   one is, and one that is chosen again sets the value it already set. The dropping only bounds
   the list.
 - **policy: not promoted after the last entry.** Every entry is promoted at its own time before
-  it is applied, and a T4 activation is delayed 14 days, so no policy can come into effect
+  it is applied, and a T3 or T4 activation is delayed at least 7 days, so no policy can come into effect
   between the last entry and the end of the replay. The call mirrors the root-grant promotion
   beside it.
 - **gatekeeper: an action is retried as an event when grants are required.** Retrying an
@@ -77,11 +77,11 @@ because they do not change what the witness accepts or refuses.
 
 ## What the numbers do not show
 
-- **A hundred and twenty-four mutants is a small sample.** They were written by hand, mostly against the witness
-  (32 of 124) and the grant, delegation, use and policy code (65), because that is where the earlier
+- **A hundred and twenty-nine mutants is a small sample.** They were written by hand, mostly against the witness
+  (32 of 129) and the grant, delegation, use and policy code (70), because that is where the earlier
   audits found gaps and where the newest code is. Packages with no entry in
   the list, such as `ledger` and `wire`, have not been mutation tested by this tool at all. A
-  clean run says these 124 changes are noticed; it says nothing about changes nobody wrote.
+  clean run says these 129 changes are noticed; it says nothing about changes nobody wrote.
 - **The mutants are the author's own.** They were chosen by the same person who wrote the
   tests. A tool that generated mutants mechanically would be a stronger check. This is an
   honest start, not a mutation score.

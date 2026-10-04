@@ -355,9 +355,13 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 		return fail(e.Height, CodeTierTooLow, "this target needs a higher tier under the verifier's policy")
 	}
 	switch p.Target {
-	case targetValidators, targetConstitution, targetGatekeeper, PolicyTarget:
+	case targetValidators, targetConstitution, targetGatekeeper:
 		if p.Tier != ledger.T4 {
 			return fail(e.Height, CodeReservedTarget, "this target can only change at tier T4")
+		}
+	case PolicyTarget:
+		if p.Tier < ledger.T3 {
+			return fail(e.Height, CodeReservedTarget, "this target needs tier T3 or T4")
 		}
 	default:
 		if strings.HasPrefix(p.Target, "cairn/") && !strings.HasPrefix(p.Target, GrantTargetPrefix) {
@@ -382,6 +386,9 @@ func (r *replayer) proposal(e *ledger.Entry, b []byte) error {
 		pol, err := DecodeRequirePolicy(pb)
 		if err != nil {
 			return fail(e.Height, CodeBadPolicy, err.Error())
+		}
+		if !pol.Require && p.Tier != ledger.T4 {
+			return fail(e.Height, CodeReservedTarget, "relaxing the require-grants rule needs tier T4, above the T3 that can impose it")
 		}
 		policy = &pol
 	}

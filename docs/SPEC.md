@@ -138,7 +138,7 @@ whether the chain is *lawful*.
 The **governance** package (section 10) replays a verified chain and checks
 lawfulness: roles, approvals, delays, freeze, validator epochs and the ACTION
 chain. It enforces invariants I1 and I3, I11 at delegation time, and keeps I7 as an auditable intent
-trail. It does **not** enforce I4, I5, I6, I8, I9 or I12, and I11 only for delegation; section 10.5
+trail. It enforces I4 only for the require-grants switch, and does **not** enforce I5, I6, I8, I9 or I12, nor I11 beyond delegation; section 10.5
 says why. Do not claim more than that.
 
 ## 9. Test vectors
@@ -183,9 +183,9 @@ check.
 - Entry `time` never decreases from one entry to the next (`time_regression`).
   Time stays advisory (ADR-5): the rule only bounds how far a proposal can be
   backdated to shorten its delay, to the time of the entry before it.
-- Targets `cairn/validators`, `cairn/constitution`, `cairn/gatekeeper` and
-  `cairn/policy/require-grants` (10.3.4) can only be proposed at tier T4; any other target beginning `cairn/` is reserved
-  (`reserved_target`).
+- Targets `cairn/validators`, `cairn/constitution` and `cairn/gatekeeper` can only be proposed at tier T4. The target
+  `cairn/policy/require-grants` (10.3.4) needs T3 or T4 to switch the rule on and T4 to switch it off. Any other target
+  beginning `cairn/` is reserved (`reserved_target`).
 - A proposal belongs to the epoch in which it was written. A VALIDATORS entry
   voids every earlier open proposal (`wrong_epoch`).
 - A reviewer votes at most once per proposal (`duplicate_vote`). Any reject or
@@ -336,8 +336,11 @@ overwritten, would let a chain close on itself.
 
 ### 10.3.4 Requiring every agent to hold a grant
 
-A PROPOSAL with target `cairn/policy/require-grants` at tier T4 sets whether the
-log requires every agent to hold a grant. Its diff blob is
+A PROPOSAL with target `cairn/policy/require-grants` sets whether the
+log requires every agent to hold a grant. Switching the rule on (`require` 1) needs
+tier T3 or T4; switching it off (`require` 0) needs T4. Below T3, or off at T3, is
+`reserved_target`. This is the one place the log enforces I4 (10.5): the blob is
+small enough to read, so loosening costs a tier more than tightening. Its diff blob is
 
 ```
 u8 version (1) | u8 require (0 or 1)
@@ -379,11 +382,15 @@ plus a completion whose blob is `refused`, a code and a detail (ADR-17).
 
 ### 10.5 What is not enforced, and why
 
-- **I4 (loosening is slower than tightening).** Whether a change loosens a
-  limit depends on what the target and diff *mean*, which the ledger does not
-  parse. Tiers are chosen by the proposer and checked by reviewers. Tier
-  minimums, the reserved T4 targets and the freeze-time T0 rule are the
-  mechanical part; the semantic part is a reviewer duty.
+- **I4 (loosening is slower than tightening)** is enforced for one target only.
+  The require-grants switch (10.3.4) reads its own blob, so switching the rule
+  off needs T4 while switching it on needs only T3. For every other target,
+  whether a change loosens a limit depends on what the target and diff *mean*,
+  which the ledger does not parse. Tiers are chosen by the proposer and checked
+  by reviewers; tier minimums, the reserved T4 targets and the freeze-time T0
+  rule are the mechanical part, and the semantic part is a reviewer duty. The
+  switch also has no baseline: T3 can turn it on at any time, and a T3 turn-on
+  that follows a T4 turn-off is allowed.
 - **I5, I6, I8, I9, I12** concern the gatekeeper and the agent runtime
   (Phase 2 and later), not the log.
 - **I11 (delegation only narrows)** is enforced at the moment of delegation

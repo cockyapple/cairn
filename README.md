@@ -152,7 +152,7 @@ exists today, and what does not, so nothing is oversold:
 
 A chain that passes the verifier is **authentic and untampered**. With the governance
 replay it is also checked for the rules in SPEC section 10, which cover roles, tiers,
-delays, freezes and ACTION ordering. It is not checked for the semantic rules (I4) or
+delays, freezes and ACTION ordering. It is not checked for the semantic rules (I4, except the require-grants switch) or
 for anything about what a gatekeeper or agent actually did. Entry times are advisory.
 Do not treat it as more than that.
 
