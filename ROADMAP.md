@@ -77,8 +77,9 @@ forced split view.
   without holding any key. Its directory is what `cairn-verify` reads. Single process, no
   replication, replay is O(n) per append, no TLS or read authentication of its own.
 - **Language-neutral vectors for proofs and governance**, which were already owed. Built for
-  the withheld-payload formats (use blobs, openings, `Locate`); still owed for Merkle proofs and
-  the governance replay.
+  the withheld-payload formats (use blobs, openings, `Locate`) and for Merkle inclusion and
+  consistency proofs (valid and invalid cases, re-derived by two stdlib-only RFC 9162
+  implementations); still owed for the governance replay.
 
 ### Phase 2 (weeks 7 to 10): Review workflow and gatekeeper. MOSTLY BUILT
 Proposals, votes, tiers, timelocks, freeze, a review web view showing diffs and eval

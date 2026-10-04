@@ -56,18 +56,20 @@ type CheckpointCase struct {
 }
 
 type File struct {
-	Version     int              `json:"version"`
-	Note        string           `json:"note"`
-	Keys        []KeyVec         `json:"keys"`
-	Merkle      []MerkleVec      `json:"merkle"`
-	Payloads    []PayloadVec     `json:"payloads"`
-	MainChain   []EntryVec       `json:"main_chain"`
-	MainRoot    string           `json:"main_chain_root"`
-	Chains      []ChainCase      `json:"chain_cases"`
-	Checkpoints []CheckpointCase `json:"checkpoint_cases"`
-	UseBlobs    []UseVec         `json:"use_blobs"`
-	Openings    []OpeningVec     `json:"openings"`
-	Locate      []LocateCase     `json:"locate_cases"`
+	Version     int               `json:"version"`
+	Note        string            `json:"note"`
+	Keys        []KeyVec          `json:"keys"`
+	Merkle      []MerkleVec       `json:"merkle"`
+	Payloads    []PayloadVec      `json:"payloads"`
+	MainChain   []EntryVec        `json:"main_chain"`
+	MainRoot    string            `json:"main_chain_root"`
+	Chains      []ChainCase       `json:"chain_cases"`
+	Checkpoints []CheckpointCase  `json:"checkpoint_cases"`
+	UseBlobs    []UseVec          `json:"use_blobs"`
+	Openings    []OpeningVec      `json:"openings"`
+	Locate      []LocateCase      `json:"locate_cases"`
+	Inclusion   []InclusionCase   `json:"inclusion_cases"`
+	Consistency []ConsistencyCase `json:"consistency_cases"`
 }
 
 const baseTime = 1790726400 // 2026-09-30T00:00:00Z
@@ -225,6 +227,8 @@ func Build() *File {
 	f.UseBlobs = b.useVectors()
 	f.Openings = b.openingVectors()
 	f.Locate = b.locateCases()
+	f.Inclusion = b.inclusionCases(chain)
+	f.Consistency = b.consistencyCases(chain)
 	return f
 }
 

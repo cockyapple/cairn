@@ -89,6 +89,18 @@ SHA-256(`0x01` \|\| left \|\| right); split at the largest power of two strictly
 less than n; the empty tree hashes the empty string. Leaves are the 178-byte
 encoded entries.
 
+### 5.1 Proofs
+
+Inclusion proofs (RFC 9162 section 2.1.3) and consistency proofs (section 2.1.4) use
+the audit paths and the verification algorithms of the RFC unchanged. Any failure is
+`bad_proof`. Two properties a second implementation must not assume away: a verifier
+holds only hashes, so a proof alone does not bind the tree size (the same path can
+verify for sizes that share its shape, and only the signed checkpoint says which size
+is real); and a consistency proof between equal sizes is empty and the roots must be equal.
+Sizes and indexes are unsigned 64-bit integers: do not parse them through a 32-bit or
+floating-point type (in JSON, values above 2^53 need an exact integer parser such as
+`BigInt`). The vectors include sizes near 2^32, 2^63 and 2^64 to catch that.
+
 ## 6. Checkpoint
 
 Body (81 bytes): `u8 version, u64 epoch, u64 size, [32] root, [32] head`.
@@ -143,13 +155,20 @@ says why. Do not claim more than that.
 
 ## 9. Test vectors
 
-`testdata/vectors-v1.json` contains an 8-entry chain covering every kind, Merkle
+`testdata/vectors-v1.json` contains a 9-entry chain covering every kind, Merkle
 roots for 0 to 9 leaves, payload encodings, and invalid chain and checkpoint
 cases with exact expected error codes. It also holds the formats of 10.4.1: use
 blobs (valid version 1 and 2 blobs and the ways one fails to decode), openings
 (valid, and each way one fails to match its commitment) and `locate_cases` (a
 small log, the blobs a verifier holds, a commitment, and the places it appears).
-These sections were added without changing the 8-entry chain. Keys and salts are derived from public
+`inclusion_cases` and `consistency_cases` hold RFC 9162 proofs: valid ones for every
+leaf of every tree of 1 to 9 leaves and every pair of sizes up to 9, for samples from trees
+of 33 and 100 leaves (inclusion and consistency), a path whose shape also fits a larger size, and for every entry and prefix of the main chain; and invalid ones
+(wrong leaf, index or sizes, a path or proof that is too short, too long, reordered or
+corrupted, a wrong or forked root, 32-bit truncation and 64-bit boundary values) that all expect `bad_proof`. Leaves are the bytes
+`leaf-<i>`, or the encoded entries for the main chain. The tests re-derive every
+verdict with two independent stdlib-only implementations of the RFC.
+These sections were added without changing the main chain. Keys and salts are derived from public
 seeds and are for testing only. The vectors are language-neutral so an independent
 verifier can be written without reading the Go.
 
