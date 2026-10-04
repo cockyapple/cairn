@@ -15,7 +15,8 @@ const (
 	// parse them.
 	ActionEvent = "cairn/event"
 
-	useVersion = 1
+	useVersion          = 1
+	useVersionCommitted = 2
 )
 
 // Use is what an agent that holds a grant declares about one action, so the log
@@ -24,14 +25,30 @@ const (
 // the canonical Use blob:
 //
 //	u8 version (1) | string host | u64 cost | bytes args
+//
+// Version 2 replaces the arguments with a commitment to them, so the blob can be
+// published while the arguments are withheld (see NewOpening):
+//
+//	u8 version (2) | string host | u64 cost | [32] args_commitment
+//
+// The replay reads only the host and the cost, so both versions are judged alike.
 type Use struct {
 	Host string
 	Cost uint64
 	Args []byte
+	// Commit, when set, makes this a version 2 blob and Args is ignored.
+	Commit *ledger.Hash
 }
 
 func (u Use) Encode() []byte {
 	var w wire.Writer
+	if u.Commit != nil {
+		w.U8(useVersionCommitted)
+		w.String(u.Host)
+		w.U64(u.Cost)
+		w.Fixed(u.Commit[:])
+		return w.Out()
+	}
 	w.U8(useVersion)
 	w.String(u.Host)
 	w.U64(u.Cost)
@@ -43,12 +60,19 @@ func (u Use) Encode() []byte {
 func DecodeUse(b []byte) (Use, error) {
 	var u Use
 	r := wire.NewReader(b)
-	if v := r.U8(); r.Err() == nil && v != useVersion {
+	v := r.U8()
+	if r.Err() == nil && v != useVersion && v != useVersionCommitted {
 		return u, fmt.Errorf("unsupported use version %d", v)
 	}
 	u.Host = r.String()
 	u.Cost = r.U64()
-	u.Args = r.Bytes()
+	if v == useVersionCommitted {
+		var c ledger.Hash
+		copy(c[:], r.Fixed(32))
+		u.Commit = &c
+	} else {
+		u.Args = r.Bytes()
+	}
 	if err := r.Done(); err != nil {
 		return Use{}, err
 	}

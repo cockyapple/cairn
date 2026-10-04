@@ -135,5 +135,17 @@ killed     governance   policy: requiring grants needs T2 only
 killed     governance   policy: relaxing is allowed at any tier
 killed     governance   policy: relaxing is allowed at T3
 killed     governance   policy: requiring needs T4 like relaxing
+killed     governance   use: any version byte is accepted
+killed     governance   use: version 2 decoded as version 1
+killed     governance   use: commitment ignored on encode
+killed     governance   opening: any opening matches
+killed     governance   opening: salt is not random
+killed     gatekeeper   hash-only: intent published
+killed     gatekeeper   hash-only: completion published
+killed     gatekeeper   hash-only: use blob not published
+killed     gatekeeper   hash-only: result opening not kept
+killed     gatekeeper   hash-only: args opening not kept
+killed     gatekeeper   hash-only: completion follows the live HashOnly flag
+killed     review       hash-only: rejected attempt leaves its use blob
 
-129 mutants: 8 equivalent 121 killed
+141 mutants: 8 equivalent 133 killed

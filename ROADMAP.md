@@ -95,8 +95,13 @@ provably never loads.
   blobs itself. Planned: a replay rule that requires the approval.
 - **Council resampling.** If reviewer confidence is low or reviewers disagree narrowly, ask again
   before recording a vote, and log that it happened.
-- **Hash-only mode for ACTION payloads.** The log records the digest and the blob stays
-  private. Governance entries keep requiring their blobs, because replay reads them.
+- **Hash-only mode for ACTION payloads.** Built (`Agent.HashOnly`, SPEC 10.4.1). The log gets
+  a salted commitment to each argument blob, result and gatekeeper record, and the gatekeeper
+  keeps the opening (`Gatekeeper.Opening`, `governance.CheckOpening`). A bound agent's use blob
+  is published as version 2 (host, cost, args commitment) so the grant is still enforced.
+  Governance entries (proposals, votes, grants) still publish their blobs, because replay reads them; so does a bound agent's use blob. **Not built:**
+  durable storage for openings (they live in memory), and a disclosure protocol: how an agent
+  proves an opening to an auditor is left to the operator.
 - **An eval runner service**, still owed from the original scope.
 
 *State (Phase 2):* the review workflow, council, provider adapters (fakes only), gatekeeper
@@ -160,7 +165,7 @@ read each of those claims as a design goal.
 
 ## Testing evidence still owed
 
-The mutation list (`testdata/mutants.json`, run in CI) has 40 hand-written mutants, 32 of them in
+The mutation list (`testdata/mutants.json`, run in CI) has 141 hand-written mutants, 32 of them in
 `witness`. `ledger`, `wire` and `note` have none, and the mutants are not generated mechanically.
 See [docs/EVIDENCE.md](docs/EVIDENCE.md) for what the numbers do and do not show.
 

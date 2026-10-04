@@ -27,6 +27,10 @@ func (w *world) useRaw(who, typ string, b []byte) {
 
 func spend(cost uint64) Use { return Use{Host: "a.example", Cost: cost, Args: []byte("x")} }
 
+var commitment = ledger.BlobHash([]byte("withheld args"))
+
+func committed(cost uint64) Use { return Use{Host: "a.example", Cost: cost, Commit: &commitment} }
+
 func TestUseRoundTrips(t *testing.T) {
 	for _, u := range []Use{{}, {Host: "a.example", Cost: 7, Args: []byte("hi")}, {Cost: math.MaxUint64, Args: make([]byte, 1000)}} {
 		got, err := DecodeUse(u.Encode())
@@ -39,7 +43,8 @@ func TestUseRoundTrips(t *testing.T) {
 		"empty":            nil,
 		"truncated":        good[:len(good)-1],
 		"trailing byte":    append(append([]byte(nil), good...), 0),
-		"unknown version":  append([]byte{2}, good[1:]...),
+		"unknown version":  append([]byte{3}, good[1:]...),
+		"v2 truncated":     {2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3},
 		"host not UTF-8":   {1, 0, 0, 0, 1, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		"version only":     {1},
 		"oversized length": {1, 0xff, 0xff, 0xff, 0xff},
@@ -90,6 +95,9 @@ func TestBoundAgentIsHeldToItsGrant(t *testing.T) {
 			w.useDone("agent", "shell", spend(1000))
 			w.useIntent("agent", "shell", spend(1))
 		}, CodeBudgetExceeded},
+		{"a committed use within the grant", func(w *world) { w.useIntent("agent", "shell", committed(10)) }, ""},
+		{"a committed use on a host the grant lacks", func(w *world) { w.useIntent("agent", "shell", Use{Host: "c.example", Commit: &commitment}) }, CodeHostNotGranted},
+		{"a committed use over the budget", func(w *world) { w.useIntent("agent", "shell", committed(1001)) }, CodeBudgetExceeded},
 		{"args that are not a use", func(w *world) { w.useRaw("agent", "shell", []byte("hello")) }, CodeBadUse},
 		{"a use with a trailing byte", func(w *world) { w.useRaw("agent", "shell", append(spend(1).Encode(), 0)) }, CodeBadUse},
 		{"a use blob that is not supplied", func(w *world) {
@@ -368,5 +376,20 @@ func TestRevokingAParentKeepsAChildsOwnScheduledRootGrant(t *testing.T) {
 	}
 	if got == nil || got.Spent != 300 || len(st.Grants) != 1 {
 		t.Fatalf("grants after revoke: %+v", st.Grants)
+	}
+}
+
+func TestCommittedUseRoundTripsAndIsJudgedByHostAndCost(t *testing.T) {
+	c := ledger.BlobHash([]byte("args"))
+	u := Use{Host: "a.example", Cost: 7, Commit: &c}
+	got, err := DecodeUse(u.Encode())
+	if err != nil || got.Host != u.Host || got.Cost != 7 || got.Commit == nil || *got.Commit != c || got.Args != nil {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if u.Encode()[0] != 2 || len(u.Encode()) != 1+4+len("a.example")+8+32 {
+		t.Fatalf("encoding: %x", u.Encode())
+	}
+	if _, err := DecodeUse(append(u.Encode(), 0)); err == nil {
+		t.Fatal("trailing byte accepted")
 	}
 }

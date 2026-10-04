@@ -306,9 +306,14 @@ blob:
 
 ```
 u8 version (1) | string host | u64 cost | bytes args
+u8 version (2) | string host | u64 cost | [32] args_commitment
 ```
 
 `host` may be empty. `args` is the caller's own argument blob and is not parsed.
+Version 2 carries a 32-byte commitment in place of the arguments, so an agent
+can publish the use blob and keep the arguments to itself (10.4.1). The checks
+below read only `host` and `cost`, so the two versions are judged the same. Any
+other version is `bad_use`.
 The checks run in this order and the first failure is reported:
 
 1. `no_grant`: the agent holds no grant now (it was withdrawn, for example by a
@@ -379,6 +384,41 @@ grant.
 Convention, not a rule the replay checks: a gatekeeper writes the result blob so
 that its first line is `ok`, `error` or `refused`, and a refusal is an intent
 plus a completion whose blob is `refused`, a code and a detail (ADR-17).
+
+### 10.4.1 Withheld payloads
+
+An ACTION entry commits to its arguments and result only by hash, so a
+gatekeeper may keep both off the log. This is a gatekeeper mode, not a rule the
+replay checks; the replay never reads an `args_hash` or `result_hash` blob except
+the use blob of a bound agent's checked intent (10.3.3).
+
+A withheld payload is committed as an **opening**: 32 random bytes (the salt)
+followed by the payload. The commitment is the blob hash of the whole opening.
+Without the salt, anyone could confirm a guess at a short or predictable payload
+by hashing it; with it they cannot. Whoever holds the opening shows the payload
+by revealing the opening, and a checker confirms it by hashing it and comparing,
+then strips the first 32 bytes.
+
+A gatekeeper in this mode writes:
+
+- an unbound agent's intent with `args_hash` = the commitment to its arguments;
+- a bound agent's checked intent with a version 2 use blob (10.3.2), published,
+  whose `args_commitment` is the commitment to its arguments. The `args_hash` is
+  the hash of that use blob, as 10.3.3 requires. The host and the cost are
+  therefore public;
+- its own records (a refusal, a rate-limit notice, a taint reset) with a commitment
+  to the event args. A bound agent's records are `cairn/event`; an unbound
+  agent's keep the original action type, with the commitment as `args_hash`;
+- every completion with `result_hash` = the commitment to its result.
+
+A use blob is published only if the log takes the entry. The commitments are
+published; the openings are not, and are not on the log
+server. They are the gatekeeper's to keep. What stays public: the action type
+(or `cairn/event`), the host and cost of a bound agent's action, the timing, the
+agent and the chain. What is withheld: the arguments, the results and, because a
+refusal is a result, the refusal's code and detail. A verifier can check that
+every disclosed opening matches the log; it cannot check that an opening exists
+for a commitment nobody discloses.
 
 ### 10.5 What is not enforced, and why
 

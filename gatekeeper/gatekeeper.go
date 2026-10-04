@@ -99,6 +99,12 @@ type Agent struct {
 	// View, the agent acts only while that exact artifact is the one in force.
 	ConfigTarget   string
 	ConfigArtifact []byte
+	// HashOnly keeps this agent's arguments and results off the log: the log gets
+	// a salted commitment to each, and the gatekeeper keeps the opening (see
+	// Gatekeeper.Opening). The action type stays public, and for an agent that holds
+	// a grant so do the host and cost. A refusal is recorded the same way, so its
+	// code and detail are private too.
+	HashOnly bool // set before AddAgent; an intent is completed in the mode it was written in
 
 	mu               sync.Mutex // serialises this agent's actions: the log chains them
 	allowed          map[string]bool
@@ -127,6 +133,11 @@ type pendingCompletion struct{ blob []byte }
 type wireForm struct {
 	typ  string
 	args []byte
+	// For a hash-only agent: the hash the intent carries, and the opening that
+	// stands behind it, held until the intent is known to be on the log.
+	hash    *ledger.Hash
+	opening []byte
+	commit  ledger.Hash
 }
 
 // use is what a real action declares about itself for the grant check.
@@ -161,6 +172,7 @@ type Gatekeeper struct {
 	types    map[string]*MessageType
 	boxes    map[string][]Message
 	waiting  map[ledger.Hash]*waiting
+	openings map[ledger.Hash][]byte // withheld payloads of hash-only agents, by commitment
 
 	View    View
 	Timeout time.Duration    // per action; zero means one minute
@@ -173,7 +185,21 @@ func New(l *review.Log) *Gatekeeper {
 	return &Gatekeeper{
 		log: l, agents: map[string]*Agent{}, handlers: map[string]Handler{},
 		types: map[string]*MessageType{}, boxes: map[string][]Message{}, waiting: map[ledger.Hash]*waiting{},
+		openings: map[ledger.Hash][]byte{},
 	}
+}
+
+// Opening returns the withheld payload (salt first) behind a commitment that a
+// hash-only agent put on the log: an args commitment, from the intent's args_hash
+// or, for an agent that holds a grant, from its Use blob, or a result_hash.
+// governance.CheckOpening verifies it and strips the salt. The openings live in
+// memory for the life of the gatekeeper; an operator who needs them longer must
+// copy them out, because the log does not hold them and cannot rebuild them.
+func (g *Gatekeeper) Opening(commit ledger.Hash) ([]byte, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	o, ok := g.openings[commit]
+	return bytes.Clone(o), ok
 }
 
 func (g *Gatekeeper) AddAgent(a *Agent) error {
@@ -268,18 +294,40 @@ func (g *Gatekeeper) intent(a *Agent, actionType string, args []byte, u *use) (l
 		return h, fmt.Errorf("%w: %w", ErrNotLogged, err)
 	}
 	a.open = wf
+	if wf.opening != nil {
+		g.openings[wf.commit] = wf.opening
+	}
 	return h, nil
 }
 
 func (g *Gatekeeper) writeIntent(a *Agent, actionType string, args []byte, u *use, bound bool) (ledger.Hash, *wireForm, error) {
-	wf := &wireForm{actionType, args}
+	wf := &wireForm{typ: actionType, args: args}
+	payload := args
 	switch {
 	case bound && u != nil:
-		wf = &wireForm{actionType, governance.Use{Host: u.host, Cost: u.cost, Args: args}.Encode()}
+		wf.args = governance.Use{Host: u.host, Cost: u.cost, Args: args}.Encode()
 	case bound:
-		wf = &wireForm{governance.ActionEvent, governance.EventArgs(actionType, args)}
+		wf.typ, payload = governance.ActionEvent, governance.EventArgs(actionType, args)
+		wf.args = payload
 	}
-	h, err := g.log.Intent(a.Key, wf.typ, wf.args)
+	if !a.HashOnly {
+		h, err := g.log.Intent(a.Key, wf.typ, wf.args)
+		return h, wf, err
+	}
+	var err error
+	if wf.opening, wf.commit, err = governance.NewOpening(payload); err != nil {
+		return ledger.Hash{}, wf, err
+	}
+	wf.args = nil
+	if bound && u != nil {
+		// The replay reads the host and cost from this blob, so it is published
+		// (only if the log takes the entry); the arguments it stands for are not.
+		h, hash, err := g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &wf.commit}.Encode())
+		wf.hash = &hash
+		return h, wf, err
+	}
+	wf.hash = &wf.commit
+	h, err := g.log.IntentHash(a.Key, wf.typ, wf.commit)
 	return h, wf, err
 }
 
@@ -290,9 +338,22 @@ func (g *Gatekeeper) complete(a *Agent, result []byte) error {
 	if a.open == nil {
 		return errors.New("gatekeeper: no open intent to complete")
 	}
-	if _, err := g.log.Complete(a.Key, a.open.typ, a.open.args, result); err != nil {
+	// The mode is the one the intent was written in, not whatever HashOnly says now.
+	if a.open.hash == nil {
+		if _, err := g.log.Complete(a.Key, a.open.typ, a.open.args, result); err != nil {
+			return err
+		}
+		a.open = nil
+		return nil
+	}
+	opening, commit, err := governance.NewOpening(result)
+	if err != nil {
 		return err
 	}
+	if _, err := g.log.CompleteHash(a.Key, a.open.typ, *a.open.hash, commit); err != nil {
+		return err
+	}
+	g.openings[commit] = opening
 	a.open = nil
 	return nil
 }

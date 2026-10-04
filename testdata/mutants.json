@@ -582,8 +582,8 @@
  {
   "name": "gatekeeper: refusals of a bound agent are plain",
   "file": "gatekeeper/gatekeeper.go",
-  "old": "\tcase bound:\n\t\twf = &wireForm{governance.ActionEvent",
-  "new": "\tcase false:\n\t\twf = &wireForm{governance.ActionEvent"
+  "old": "\tcase bound:\n\t\twf.typ, payload = governance.ActionEvent",
+  "new": "\tcase false:\n\t\twf.typ, payload = governance.ActionEvent"
  },
  {
   "name": "gatekeeper: the use drops the arguments",
@@ -601,7 +601,7 @@
   "name": "gatekeeper: the completion repeats the wrong form",
   "file": "gatekeeper/gatekeeper.go",
   "old": "a.open = wf",
-  "new": "a.open = &wireForm{actionType, args}\n\t_ = wf"
+  "new": "a.open = &wireForm{typ: actionType, args: args}\n\t_ = wf"
  },
  {
   "name": "gatekeeper: reserved types are not written plain",
@@ -780,5 +780,77 @@
   "file": "governance/governance.go",
   "old": "if !pol.Require && p.Tier != ledger.T4 {",
   "new": "if p.Tier != ledger.T4 {"
+ },
+ {
+  "name": "use: any version byte is accepted",
+  "file": "governance/use.go",
+  "old": "v != useVersion && v != useVersionCommitted",
+  "new": "false"
+ },
+ {
+  "name": "use: version 2 decoded as version 1",
+  "file": "governance/use.go",
+  "old": "if v == useVersionCommitted {\n\t\tvar c",
+  "new": "if false {\n\t\tvar c"
+ },
+ {
+  "name": "use: commitment ignored on encode",
+  "file": "governance/use.go",
+  "old": "if u.Commit != nil {\n\t\tw.U8",
+  "new": "if false {\n\t\tw.U8"
+ },
+ {
+  "name": "opening: any opening matches",
+  "file": "governance/opening.go",
+  "old": "ledger.BlobHash(opening) != commit",
+  "new": "false"
+ },
+ {
+  "name": "opening: salt is not random",
+  "file": "governance/opening.go",
+  "old": "_, err = rand.Read(opening)",
+  "new": "_, err = rand.Read(opening[:0])"
+ },
+ {
+  "name": "hash-only: intent published",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if !a.HashOnly {\n\t\th, err := g.log.Intent",
+  "new": "if true {\n\t\th, err := g.log.Intent"
+ },
+ {
+  "name": "hash-only: completion published",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if a.open.hash == nil {\n\t\tif _, err := g.log.Complete",
+  "new": "if true {\n\t\tif _, err := g.log.Complete"
+ },
+ {
+  "name": "hash-only: use blob not published",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "h, hash, err := g.log.IntentPublished(a.Key, wf.typ, governance.Use{Host: u.host, Cost: u.cost, Commit: &wf.commit}.Encode())",
+  "new": "h, err := g.log.IntentHash(a.Key, wf.typ, wf.commit)\n\t\thash := wf.commit"
+ },
+ {
+  "name": "hash-only: result opening not kept",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "g.openings[commit] = opening",
+  "new": "_ = opening"
+ },
+ {
+  "name": "hash-only: args opening not kept",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if wf.opening != nil {",
+  "new": "if false {"
+ },
+ {
+  "name": "hash-only: completion follows the live HashOnly flag",
+  "file": "gatekeeper/gatekeeper.go",
+  "old": "if a.open.hash == nil {\n\t\tif _, err := g.log.Complete",
+  "new": "if !a.HashOnly {\n\t\tif _, err := g.log.Complete"
+ },
+ {
+  "name": "hash-only: rejected attempt leaves its use blob",
+  "file": "review/action.go",
+  "old": "if err != nil && !had {",
+  "new": "if false && !had {"
  }
 ]
