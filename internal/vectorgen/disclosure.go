@@ -24,10 +24,10 @@ type UseVec struct {
 
 // OpeningVec is a candidate opening and the commitment it is checked against.
 type OpeningVec struct {
-	Name       string `json:"name"`
-	OpeningHex string `json:"opening_hex"`
-	Commitment string `json:"commitment"`
-	Valid      bool   `json:"valid"`
+	Name       string  `json:"name"`
+	OpeningHex string  `json:"opening_hex"`
+	Commitment string  `json:"commitment"`
+	Valid      bool    `json:"valid"`
 	PayloadHex *string `json:"payload_hex,omitempty"` // present, possibly "", when Valid
 }
 
