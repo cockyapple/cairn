@@ -1,6 +1,6 @@
 # go test -race -count=1 -v ./...   (golang:1.24-alpine, go1.24.13, CGO_ENABLED=1)
-# base commit fd382e5d1981ddbbb4eddeb57afb26c9a79d58f2 plus the uncommitted changes that add this file
-# top-level tests: 321 passed, 0 failed, 0 skipped; subtests passed: 212
+# base commit 77f214bce53178788937f19f72ab62f95cc31797 plus the uncommitted changes that add this file
+# top-level tests: 324 passed, 0 failed, 0 skipped; subtests passed: 212
 
 ?   	github.com/cockyapple/cairn/cmd/cairn-logd	[no test files]
 === RUN   TestWritesPage
@@ -12,7 +12,7 @@
 === RUN   TestUseClockRejectsAFutureDatedLog
 --- PASS: TestUseClockRejectsAFutureDatedLog (0.01s)
 PASS
-ok  	github.com/cockyapple/cairn/cmd/cairn-review	1.071s
+ok  	github.com/cockyapple/cairn/cmd/cairn-review	1.068s
 ?   	github.com/cockyapple/cairn/cmd/cairn-vectors	[no test files]
 === RUN   TestVerifiesALawfulLog
 --- PASS: TestVerifiesALawfulLog (0.01s)
@@ -37,13 +37,13 @@ ok  	github.com/cockyapple/cairn/cmd/cairn-review	1.071s
 === RUN   TestNoteFailuresAreNamed
 --- PASS: TestNoteFailuresAreNamed (0.03s)
 === RUN   TestNoteUsageErrors
---- PASS: TestNoteUsageErrors (0.02s)
+--- PASS: TestNoteUsageErrors (0.01s)
 === RUN   TestReadCappedRefusesAnOversizedFile
 --- PASS: TestReadCappedRefusesAnOversizedFile (0.00s)
 === RUN   TestABlobAtTheWireCeilingIsAccepted
 --- PASS: TestABlobAtTheWireCeilingIsAccepted (0.01s)
 PASS
-ok  	github.com/cockyapple/cairn/cmd/cairn-verify	1.141s
+ok  	github.com/cockyapple/cairn/cmd/cairn-verify	1.131s
 ?   	github.com/cockyapple/cairn/cmd/cairn-witness	[no test files]
 === RUN   TestRunIsDeterministicAndOrdered
 --- PASS: TestRunIsDeterministicAndOrdered (0.00s)
@@ -62,23 +62,23 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestDeniedActionNeverRunsAndIsLogged
 --- PASS: TestDeniedActionNeverRunsAndIsLogged (0.06s)
 === RUN   TestHandlerFailureAndPanicAreRecorded
---- PASS: TestHandlerFailureAndPanicAreRecorded (0.03s)
+--- PASS: TestHandlerFailureAndPanicAreRecorded (0.04s)
 === RUN   TestUnloggableIntentMeansNoAction
 --- PASS: TestUnloggableIntentMeansNoAction (0.01s)
 === RUN   TestAgentRunsOnlyActivatedConfig
 --- PASS: TestAgentRunsOnlyActivatedConfig (0.13s)
 === RUN   TestTypedBus
---- PASS: TestTypedBus (0.35s)
+--- PASS: TestTypedBus (0.34s)
 === RUN   TestConcurrentActionsKeepTheChainLawful
---- PASS: TestConcurrentActionsKeepTheChainLawful (2.74s)
+--- PASS: TestConcurrentActionsKeepTheChainLawful (2.67s)
 === RUN   TestRefusedCompletionIsRetriedBeforeNextAction
 --- PASS: TestRefusedCompletionIsRetriedBeforeNextAction (0.04s)
 === RUN   TestAgentWithoutAGrantIsLoggedPlain
 --- PASS: TestAgentWithoutAGrantIsLoggedPlain (0.06s)
 === RUN   TestBoundAgentActsInsideItsGrantAndIsCharged
---- PASS: TestBoundAgentActsInsideItsGrantAndIsCharged (0.14s)
+--- PASS: TestBoundAgentActsInsideItsGrantAndIsCharged (0.13s)
 === RUN   TestActionOutsideTheGrantIsRefusedAndRecorded
---- PASS: TestActionOutsideTheGrantIsRefusedAndRecorded (0.17s)
+--- PASS: TestActionOutsideTheGrantIsRefusedAndRecorded (0.16s)
 === RUN   TestRefusalsOfABoundAgentDoNotNeedAGrant
 --- PASS: TestRefusalsOfABoundAgentDoNotNeedAGrant (0.10s)
 === RUN   TestReservedActionTypesAreRefused
@@ -88,21 +88,21 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestBusSendOfABoundAgentNeedsItsToolInTheGrant
 --- PASS: TestBusSendOfABoundAgentNeedsItsToolInTheGrant (0.07s)
 === RUN   TestFirstActionAfterTheGrantTakesEffectIsRecordedAsBound
---- PASS: TestFirstActionAfterTheGrantTakesEffectIsRecordedAsBound (0.11s)
+--- PASS: TestFirstActionAfterTheGrantTakesEffectIsRecordedAsBound (0.10s)
 === RUN   TestExpiredGrantRefusesAction
---- PASS: TestExpiredGrantRefusesAction (0.10s)
+--- PASS: TestExpiredGrantRefusesAction (0.09s)
 === RUN   TestCompletionOfABoundAgentIsRetriedInTheSameForm
 --- PASS: TestCompletionOfABoundAgentIsRetriedInTheSameForm (0.12s)
 === RUN   TestRefusalErrorsWrapTheGovernanceError
---- PASS: TestRefusalErrorsWrapTheGovernanceError (0.08s)
+--- PASS: TestRefusalErrorsWrapTheGovernanceError (0.07s)
 === RUN   TestReservedTypeRefusalOfAnUnboundAgentIsStillLogged
 --- PASS: TestReservedTypeRefusalOfAnUnboundAgentIsStillLogged (0.08s)
 === RUN   TestArgsThatLookLikeAUseCannotDeclareTheActionInTheAgentsPlace
---- PASS: TestArgsThatLookLikeAUseCannotDeclareTheActionInTheAgentsPlace (0.11s)
+--- PASS: TestArgsThatLookLikeAUseCannotDeclareTheActionInTheAgentsPlace (0.10s)
 === RUN   TestHostThatCannotBeRecordedIsRefusedAndLogged
 --- PASS: TestHostThatCannotBeRecordedIsRefusedAndLogged (0.14s)
 === RUN   TestAgentWithoutAGrantIsRefusedOnceTheLogRequiresGrants
---- PASS: TestAgentWithoutAGrantIsRefusedOnceTheLogRequiresGrants (0.21s)
+--- PASS: TestAgentWithoutAGrantIsRefusedOnceTheLogRequiresGrants (0.20s)
 === RUN   TestHandlerCannotRewriteWhatTheLogCommitsTo
 --- PASS: TestHandlerCannotRewriteWhatTheLogCommitsTo (0.02s)
 === RUN   TestOneKeyIsOneAgent
@@ -114,7 +114,7 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestHashOnlyAgentPutsOnlyCommitmentsOnTheLog
 --- PASS: TestHashOnlyAgentPutsOnlyCommitmentsOnTheLog (0.06s)
 === RUN   TestHashOnlyCommitmentsAreSalted
---- PASS: TestHashOnlyCommitmentsAreSalted (0.07s)
+--- PASS: TestHashOnlyCommitmentsAreSalted (0.08s)
 === RUN   TestHashOnlyBoundAgentPublishesHostAndCostButNotArgs
 --- PASS: TestHashOnlyBoundAgentPublishesHostAndCostButNotArgs (0.12s)
 === RUN   TestHashOnlyRefusalIsRecordedAsCommitments
@@ -122,15 +122,15 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestHashOnlyAgentThatBecomesBoundIsRetriedInTheBoundForm
 --- PASS: TestHashOnlyAgentThatBecomesBoundIsRetriedInTheBoundForm (0.10s)
 === RUN   TestHashOnlyRejectedIntentLeavesNoUseBlob
---- PASS: TestHashOnlyRejectedIntentLeavesNoUseBlob (0.08s)
+--- PASS: TestHashOnlyRejectedIntentLeavesNoUseBlob (0.07s)
 === RUN   TestIntentIsCompletedInTheModeItWasWritten
 --- PASS: TestIntentIsCompletedInTheModeItWasWritten (0.12s)
 === RUN   TestOpeningStoresRoundTrip
---- PASS: TestOpeningStoresRoundTrip (0.00s)
+--- PASS: TestOpeningStoresRoundTrip (0.01s)
 === RUN   TestDirOpeningsSurviveANewInstance
---- PASS: TestDirOpeningsSurviveANewInstance (0.00s)
+--- PASS: TestDirOpeningsSurviveANewInstance (0.01s)
 === RUN   TestDirOpeningsRefuseWhatDoesNotMatch
---- PASS: TestDirOpeningsRefuseWhatDoesNotMatch (0.00s)
+--- PASS: TestDirOpeningsRefuseWhatDoesNotMatch (0.01s)
 === RUN   TestHashOnlyFailsClosedWhenTheOpeningCannotBeStored
 --- PASS: TestHashOnlyFailsClosedWhenTheOpeningCannotBeStored (0.03s)
 === RUN   TestHashOnlyDoesNotCompleteWhenTheResultOpeningCannotBeStored
@@ -150,7 +150,7 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestRateLimitRefusesOverBudgetAndNeverRunsTheHandler
 --- PASS: TestRateLimitRefusesOverBudgetAndNeverRunsTheHandler (0.04s)
 === RUN   TestRateLimitLogsOneRefusalPerWindowThenTheCount
---- PASS: TestRateLimitLogsOneRefusalPerWindowThenTheCount (0.07s)
+--- PASS: TestRateLimitLogsOneRefusalPerWindowThenTheCount (0.06s)
 === RUN   TestRateLimitCountsRefusedRequestsToo
 --- PASS: TestRateLimitCountsRefusedRequestsToo (0.04s)
 === RUN   TestRateLimitZeroMeansUncapped
@@ -158,7 +158,7 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestRateLimitRejectsNegativeConfig
 --- PASS: TestRateLimitRejectsNegativeConfig (0.00s)
 === RUN   TestRateLimitAppliesToBusSends
---- PASS: TestRateLimitAppliesToBusSends (0.02s)
+--- PASS: TestRateLimitAppliesToBusSends (0.03s)
 === RUN   TestRateLimitRetriesTheFirstRefusalIfTheLogTookNothing
 --- PASS: TestRateLimitRetriesTheFirstRefusalIfTheLogTookNothing (0.03s)
 === RUN   TestRateLimitDoesNotRepeatTheCountWhenOnlyItsCompletionFailed
@@ -194,13 +194,13 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestEscalationHoldsTaintedActionForReview
 --- PASS: TestEscalationHoldsTaintedActionForReview (0.04s)
 === RUN   TestEscalatedRejectionRefuses
---- PASS: TestEscalatedRejectionRefuses (0.02s)
+--- PASS: TestEscalatedRejectionRefuses (0.03s)
 === RUN   TestTaintTravelsOverTheBusOnReceive
 --- PASS: TestTaintTravelsOverTheBusOnReceive (0.06s)
 === RUN   TestNoTaintTypeDoesNotCarryTaint
 --- PASS: TestNoTaintTypeDoesNotCarryTaint (0.03s)
 === RUN   TestTaintedAgentCannotSendGuardedMessage
---- PASS: TestTaintedAgentCannotSendGuardedMessage (0.03s)
+--- PASS: TestTaintedAgentCannotSendGuardedMessage (0.02s)
 === RUN   TestResetTaintIsLoggedAndRestoresTheAgent
 --- PASS: TestResetTaintIsLoggedAndRestoresTheAgent (0.05s)
 === RUN   TestProvenanceConfigMustNameAllowedActions
@@ -210,7 +210,7 @@ ok  	github.com/cockyapple/cairn/eval	1.021s
 === RUN   TestResetStillTakesEffectWhenItsCompletionCannotBeLogged
 --- PASS: TestResetStillTakesEffectWhenItsCompletionCannotBeLogged (0.05s)
 PASS
-ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
+ok  	github.com/cockyapple/cairn/gatekeeper	8.709s
 === RUN   TestLawfulHistoryReplays
 --- PASS: TestLawfulHistoryReplays (0.03s)
 === RUN   TestOpenIntentIsReported
@@ -276,7 +276,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestViolations/a_host_outside_the_grant
 === RUN   TestViolations/more_than_the_budget
 === RUN   TestViolations/a_malformed_payload_keeps_the_ledger_code
---- PASS: TestViolations (0.89s)
+--- PASS: TestViolations (0.83s)
     --- PASS: TestViolations/agent_cannot_vote_(I1) (0.01s)
     --- PASS: TestViolations/agent_cannot_activate_its_own_change_(I1) (0.01s)
     --- PASS: TestViolations/reviewer_cannot_activate (0.01s)
@@ -294,25 +294,25 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
     --- PASS: TestViolations/vote_for_nothing (0.01s)
     --- PASS: TestViolations/vote_for_a_non-proposal (0.01s)
     --- PASS: TestViolations/activate_nothing (0.01s)
-    --- PASS: TestViolations/duplicate_vote (0.02s)
+    --- PASS: TestViolations/duplicate_vote (0.01s)
     --- PASS: TestViolations/double_activation (0.01s)
     --- PASS: TestViolations/vote_after_activation (0.01s)
     --- PASS: TestViolations/same_vote_listed_twice (0.01s)
     --- PASS: TestViolations/vote_for_another_proposal_listed (0.01s)
     --- PASS: TestViolations/invented_vote_listed (0.01s)
-    --- PASS: TestViolations/a_reject_vote_vetoes (0.01s)
-    --- PASS: TestViolations/an_escalate_vote_blocks (0.02s)
+    --- PASS: TestViolations/a_reject_vote_vetoes (0.02s)
+    --- PASS: TestViolations/an_escalate_vote_blocks (0.01s)
     --- PASS: TestViolations/T1_with_no_approvals (0.01s)
     --- PASS: TestViolations/T2_without_a_security_reviewer (0.01s)
-    --- PASS: TestViolations/T3_with_one_reviewer_short (0.02s)
+    --- PASS: TestViolations/T3_with_one_reviewer_short (0.01s)
     --- PASS: TestViolations/T1_one_hour_short (0.01s)
     --- PASS: TestViolations/effective_before_the_proposal (0.01s)
-    --- PASS: TestViolations/no_T1_activation_during_a_freeze (0.02s)
+    --- PASS: TestViolations/no_T1_activation_during_a_freeze (0.01s)
     --- PASS: TestViolations/lift_without_a_freeze (0.01s)
     --- PASS: TestViolations/freeze_twice (0.01s)
     --- PASS: TestViolations/validators_change_with_no_authorisation (0.02s)
-    --- PASS: TestViolations/validators_change_differs_from_the_approved_diff (0.03s)
-    --- PASS: TestViolations/validators_change_before_it_is_effective (0.03s)
+    --- PASS: TestViolations/validators_change_differs_from_the_approved_diff (0.02s)
+    --- PASS: TestViolations/validators_change_before_it_is_effective (0.02s)
     --- PASS: TestViolations/a_validators_change_voids_the_other_activated_proposals (0.04s)
     --- PASS: TestViolations/validators_epoch_skips (0.02s)
     --- PASS: TestViolations/validators_change_during_a_freeze (0.03s)
@@ -320,7 +320,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
     --- PASS: TestViolations/action_chain_is_per_agent (0.01s)
     --- PASS: TestViolations/completion_with_no_intent (0.01s)
     --- PASS: TestViolations/completion_for_a_different_action (0.01s)
-    --- PASS: TestViolations/completions_close_the_oldest_intent_first (0.01s)
+    --- PASS: TestViolations/completions_close_the_oldest_intent_first (0.02s)
     --- PASS: TestViolations/only_agent_and_proposer_keys_can_be_revoked (0.01s)
     --- PASS: TestViolations/a_revoked_key_cannot_write (0.01s)
     --- PASS: TestViolations/a_grant_for_a_key_that_is_not_an_agent (0.01s)
@@ -338,7 +338,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestChainErrorsComeFirst
 --- PASS: TestChainErrorsComeFirst (0.01s)
 === RUN   TestFreezeLeavesRollbackAndActionsOpen
---- PASS: TestFreezeLeavesRollbackAndActionsOpen (0.01s)
+--- PASS: TestFreezeLeavesRollbackAndActionsOpen (0.02s)
 === RUN   TestReplayIsDeterministic
 --- PASS: TestReplayIsDeterministic (0.03s)
 === RUN   TestVerifierTierFloor
@@ -388,7 +388,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestDelegationRules/args_with_trailing_bytes
 === RUN   TestDelegationRules/args_that_are_not_available
 === RUN   TestDelegationRules/a_lookalike_of_the_delegation_type_is_an_ordinary_action
---- PASS: TestDelegationRules (0.44s)
+--- PASS: TestDelegationRules (0.42s)
     --- PASS: TestDelegationRules/one_tool_fewer_is_allowed (0.02s)
     --- PASS: TestDelegationRules/one_host_fewer_is_allowed (0.02s)
     --- PASS: TestDelegationRules/a_smaller_budget_is_allowed (0.02s)
@@ -435,7 +435,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestGrantProposalRules/a_missing_grant_blob
 === RUN   TestGrantProposalRules/another_cairn_target_stays_reserved
 === RUN   TestGrantProposalRules/the_prefix_without_a_slash_stays_reserved
---- PASS: TestGrantProposalRules (0.18s)
+--- PASS: TestGrantProposalRules (0.20s)
     --- PASS: TestGrantProposalRules/a_T3_grant_is_accepted (0.01s)
     --- PASS: TestGrantProposalRules/a_T4_grant_is_accepted (0.01s)
     --- PASS: TestGrantProposalRules/T2_is_too_low (0.01s)
@@ -470,7 +470,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestReplacingARootGrantDoesNotShrinkWhatWasDelegated
 --- PASS: TestReplacingARootGrantDoesNotShrinkWhatWasDelegated (0.02s)
 === RUN   TestARootGrantReplacesTheOldOnlyWhenItTakesEffect
---- PASS: TestARootGrantReplacesTheOldOnlyWhenItTakesEffect (0.03s)
+--- PASS: TestARootGrantReplacesTheOldOnlyWhenItTakesEffect (0.04s)
 === RUN   TestALaterActivationSupersedesAnEarlierOne
 --- PASS: TestALaterActivationSupersedesAnEarlierOne (0.03s)
 === RUN   TestAnExpiredGrantIsNotHeld
@@ -488,9 +488,9 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestRequirePolicyEncoding
 --- PASS: TestRequirePolicyEncoding (0.00s)
 === RUN   TestRequireGrantsHoldsAnAgentThatNeverHadOne
---- PASS: TestRequireGrantsHoldsAnAgentThatNeverHadOne (0.05s)
+--- PASS: TestRequireGrantsHoldsAnAgentThatNeverHadOne (0.06s)
 === RUN   TestRequireGrantsCanBeSwitchedOnAtT3ButNotOffAtT3
---- PASS: TestRequireGrantsCanBeSwitchedOnAtT3ButNotOffAtT3 (0.03s)
+--- PASS: TestRequireGrantsCanBeSwitchedOnAtT3ButNotOffAtT3 (0.04s)
 === RUN   TestRequireGrantsIsReportedOnceInForce
 --- PASS: TestRequireGrantsIsReportedOnceInForce (0.02s)
 === RUN   TestRequireGrantsLeavesGrantedAgentsAndEventsAlone
@@ -516,16 +516,16 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestRequirePolicyProposalRules/a_delay_shorter_than_T4_needs
 === RUN   TestRequirePolicyProposalRules/during_a_freeze
 --- PASS: TestRequirePolicyProposalRules (0.15s)
-    --- PASS: TestRequirePolicyProposalRules/a_well_formed_T4_proposal (0.01s)
-    --- PASS: TestRequirePolicyProposalRules/requiring_grants_at_T3 (0.02s)
+    --- PASS: TestRequirePolicyProposalRules/a_well_formed_T4_proposal (0.02s)
+    --- PASS: TestRequirePolicyProposalRules/requiring_grants_at_T3 (0.01s)
     --- PASS: TestRequirePolicyProposalRules/requiring_grants_below_T3 (0.01s)
     --- PASS: TestRequirePolicyProposalRules/relaxing_at_T4 (0.01s)
     --- PASS: TestRequirePolicyProposalRules/relaxing_at_T3 (0.01s)
-    --- PASS: TestRequirePolicyProposalRules/requiring_at_T3_with_a_T3_delay_too_short (0.02s)
+    --- PASS: TestRequirePolicyProposalRules/requiring_at_T3_with_a_T3_delay_too_short (0.01s)
     --- PASS: TestRequirePolicyProposalRules/a_blob_that_is_not_a_policy (0.01s)
     --- PASS: TestRequirePolicyProposalRules/a_blob_that_is_not_supplied (0.01s)
     --- PASS: TestRequirePolicyProposalRules/another_target_under_the_policy_namespace (0.01s)
-    --- PASS: TestRequirePolicyProposalRules/a_delay_shorter_than_T4_needs (0.02s)
+    --- PASS: TestRequirePolicyProposalRules/a_delay_shorter_than_T4_needs (0.01s)
     --- PASS: TestRequirePolicyProposalRules/during_a_freeze (0.02s)
 === RUN   TestRevokedAgentCanNoLongerAct
 --- PASS: TestRevokedAgentCanNoLongerAct (0.02s)
@@ -534,7 +534,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestRevokedProposerCannotGetAProposalActivated
 --- PASS: TestRevokedProposerCannotGetAProposalActivated (0.02s)
 === RUN   TestActivationBeforeRevocationStands
---- PASS: TestActivationBeforeRevocationStands (0.01s)
+--- PASS: TestActivationBeforeRevocationStands (0.02s)
 === RUN   TestRevokeRules
 === RUN   TestRevokeRules/a_reviewer_cannot_be_revoked_by_one_signer
 === RUN   TestRevokeRules/a_validator_cannot_be_revoked_by_one_signer
@@ -600,7 +600,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestBoundAgentIsHeldToItsGrant/a_delegated_agent_is_bound_too
 === RUN   TestBoundAgentIsHeldToItsGrant/a_delegated_agent_with_its_own_grant_acts
 === RUN   TestBoundAgentIsHeldToItsGrant/a_delegated_agent_loses_its_grant_when_its_parent_is_revoked
---- PASS: TestBoundAgentIsHeldToItsGrant (0.52s)
+--- PASS: TestBoundAgentIsHeldToItsGrant (0.50s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_granted_tool_on_a_granted_host_within_budget (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/no_host_at_all (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_tool_the_grant_lacks (0.02s)
@@ -608,7 +608,7 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_host_the_grant_lacks (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_host_that_only_starts_like_a_granted_one (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/the_whole_budget_in_one_action (0.02s)
-    --- PASS: TestBoundAgentIsHeldToItsGrant/one_more_than_the_budget (0.02s)
+    --- PASS: TestBoundAgentIsHeldToItsGrant/one_more_than_the_budget (0.01s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_cost_that_would_overflow_a_sum (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_cost_that_would_overflow_a_sum_after_some_spending (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/actions_that_add_up_to_the_budget (0.02s)
@@ -621,8 +621,8 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
     --- PASS: TestBoundAgentIsHeldToItsGrant/args_that_are_not_a_use (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_use_with_a_trailing_byte (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_use_blob_that_is_not_supplied (0.02s)
-    --- PASS: TestBoundAgentIsHeldToItsGrant/the_last_moment_of_the_grant (0.02s)
-    --- PASS: TestBoundAgentIsHeldToItsGrant/an_expired_grant (0.02s)
+    --- PASS: TestBoundAgentIsHeldToItsGrant/the_last_moment_of_the_grant (0.01s)
+    --- PASS: TestBoundAgentIsHeldToItsGrant/an_expired_grant (0.01s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/an_expired_grant_does_not_make_the_agent_free_again (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/a_completion_after_the_grant_expired (0.02s)
     --- PASS: TestBoundAgentIsHeldToItsGrant/an_event_needs_no_grant_and_costs_nothing (0.02s)
@@ -641,20 +641,20 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
 === RUN   TestBudgetIsSharedDownTheDelegationChain/a_child_cannot_exceed_its_own_budget_although_its_parent_has_room
 === RUN   TestBudgetIsSharedDownTheDelegationChain/a_grandchild_is_charged_to_every_grant_above_it
 === RUN   TestBudgetIsSharedDownTheDelegationChain/a_spent_descendant_under_an_exhausted_ancestor_is_blocked
---- PASS: TestBudgetIsSharedDownTheDelegationChain (0.18s)
+--- PASS: TestBudgetIsSharedDownTheDelegationChain (0.19s)
     --- PASS: TestBudgetIsSharedDownTheDelegationChain/a_child's_spending_comes_out_of_its_parent's_budget (0.02s)
     --- PASS: TestBudgetIsSharedDownTheDelegationChain/the_parent_cannot_overspend_what_its_child_used (0.02s)
-    --- PASS: TestBudgetIsSharedDownTheDelegationChain/two_children_cannot_together_exceed_the_parent (0.02s)
-    --- PASS: TestBudgetIsSharedDownTheDelegationChain/two_children_within_the_parent's_remainder_are_fine (0.02s)
+    --- PASS: TestBudgetIsSharedDownTheDelegationChain/two_children_cannot_together_exceed_the_parent (0.03s)
+    --- PASS: TestBudgetIsSharedDownTheDelegationChain/two_children_within_the_parent's_remainder_are_fine (0.03s)
     --- PASS: TestBudgetIsSharedDownTheDelegationChain/a_child_cannot_exceed_its_own_budget_although_its_parent_has_room (0.02s)
-    --- PASS: TestBudgetIsSharedDownTheDelegationChain/a_grandchild_is_charged_to_every_grant_above_it (0.05s)
+    --- PASS: TestBudgetIsSharedDownTheDelegationChain/a_grandchild_is_charged_to_every_grant_above_it (0.04s)
     --- PASS: TestBudgetIsSharedDownTheDelegationChain/a_spent_descendant_under_an_exhausted_ancestor_is_blocked (0.02s)
 === RUN   TestANewRootGrantStartsANewBudget
 --- PASS: TestANewRootGrantStartsANewBudget (0.04s)
 === RUN   TestAnAgentIsBoundOnlyOnceItsGrantIsEffective
 --- PASS: TestAnAgentIsBoundOnlyOnceItsGrantIsEffective (0.03s)
 === RUN   TestDelegationCannotMakeACycle
---- PASS: TestDelegationCannotMakeACycle (0.03s)
+--- PASS: TestDelegationCannotMakeACycle (0.02s)
 === RUN   TestStateReportsBoundAgents
 --- PASS: TestStateReportsBoundAgents (0.02s)
 === RUN   TestRevokingAParentKeepsAChildsOwnScheduledRootGrant
@@ -680,8 +680,14 @@ ok  	github.com/cockyapple/cairn/gatekeeper	8.835s
     --- PASS: FuzzDecodeUse/seed#2 (0.00s)
     --- PASS: FuzzDecodeUse/seed#3 (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/governance	4.674s
+ok  	github.com/cockyapple/cairn/governance	4.628s
 ?   	github.com/cockyapple/cairn/internal/mutate	[no test files]
+=== RUN   TestUseBlobVectors
+--- PASS: TestUseBlobVectors (0.01s)
+=== RUN   TestOpeningVectors
+--- PASS: TestOpeningVectors (0.02s)
+=== RUN   TestLocateVectors
+--- PASS: TestLocateVectors (0.08s)
 === RUN   TestSpecErrorCodesMatchCode
 --- PASS: TestSpecErrorCodesMatchCode (0.00s)
 === RUN   TestTamperBaselineAccepted
@@ -702,7 +708,7 @@ ok  	github.com/cockyapple/cairn/governance	4.674s
     tamper_test.go:310:    unknown_kind                     45
     tamper_test.go:310:    unknown_signer                 1277
     tamper_test.go:310:    unsorted_signers                  3
---- PASS: TestTamperExhaustiveBitFlips (131.74s)
+--- PASS: TestTamperExhaustiveBitFlips (143.43s)
 === RUN   TestTamperSeededRandom
     tamper_test.go:176: seeded random mutations: 1000 drawn, 992 changed bytes, 0 accepted
     tamper_test.go:310:    bad_checkpoint                   39
@@ -719,7 +725,7 @@ ok  	github.com/cockyapple/cairn/governance	4.674s
     tamper_test.go:310:    size_mismatch                     2
     tamper_test.go:310:    unknown_kind                      3
     tamper_test.go:310:    unknown_signer                   15
---- PASS: TestTamperSeededRandom (3.03s)
+--- PASS: TestTamperSeededRandom (3.45s)
 === RUN   TestTamperStructural
     tamper_test.go:244: structural attacks: 115 run
     tamper_test.go:310:    bad_genesis                       1
@@ -735,7 +741,7 @@ ok  	github.com/cockyapple/cairn/governance	4.674s
     tamper_test.go:248:    chain-only pass: truncate_tail_to_6_entries
     tamper_test.go:248:    chain-only pass: truncate_tail_to_7_entries
     tamper_test.go:248:    chain-only pass: truncate_tail_to_8_entries
---- PASS: TestTamperStructural (0.75s)
+--- PASS: TestTamperStructural (0.83s)
 === RUN   TestTamperAppendAfterCheckpoint
 --- PASS: TestTamperAppendAfterCheckpoint (0.07s)
 === RUN   TestTamperSurplusSignersAllRejected
@@ -749,11 +755,11 @@ ok  	github.com/cockyapple/cairn/governance	4.674s
     tamper_test.go:310:    size_mismatch                    64
     tamper_test.go:310:    unknown_signer                 1532
     tamper_test.go:310:    unsorted_signers                  4
---- PASS: TestTamperSurplusSignersAllRejected (63.54s)
+--- PASS: TestTamperSurplusSignersAllRejected (68.31s)
 === RUN   TestGoldenFileIsCurrent
---- PASS: TestGoldenFileIsCurrent (0.03s)
+--- PASS: TestGoldenFileIsCurrent (0.04s)
 === RUN   TestBuildIsDeterministic
---- PASS: TestBuildIsDeterministic (0.06s)
+--- PASS: TestBuildIsDeterministic (0.08s)
 === RUN   TestEveryEntryKindHasAVector
 --- PASS: TestEveryEntryKindHasAVector (0.01s)
 === RUN   TestEveryErrorCodeIsExercised
@@ -763,19 +769,19 @@ ok  	github.com/cockyapple/cairn/governance	4.674s
 === RUN   TestChainCases
 --- PASS: TestChainCases (0.03s)
 === RUN   TestCheckpointCases
---- PASS: TestCheckpointCases (0.31s)
+--- PASS: TestCheckpointCases (0.34s)
 === RUN   TestMerkleVectorsAgainstIndependentImplementation
 --- PASS: TestMerkleVectorsAgainstIndependentImplementation (0.01s)
 === RUN   TestMainChainAgainstRawStdlib
 --- PASS: TestMainChainAgainstRawStdlib (0.01s)
 PASS
-ok  	github.com/cockyapple/cairn/internal/vectorgen	200.679s
+ok  	github.com/cockyapple/cairn/internal/vectorgen	217.873s
 === RUN   TestEntrySizeAndRoundTrip
 --- PASS: TestEntrySizeAndRoundTrip (0.00s)
 === RUN   TestDecodeEntryRejectsGarbage
 --- PASS: TestDecodeEntryRejectsGarbage (0.00s)
 === RUN   TestEveryBitFlipBreaksSignature
---- PASS: TestEveryBitFlipBreaksSignature (1.08s)
+--- PASS: TestEveryBitFlipBreaksSignature (1.06s)
 === RUN   TestSignatureDomainSeparation
 --- PASS: TestSignatureDomainSeparation (0.00s)
 === RUN   TestMerkleKnownShapes
@@ -801,9 +807,9 @@ ok  	github.com/cockyapple/cairn/internal/vectorgen	200.679s
 === RUN   TestMerkleRootMatchesReferenceVectors
 --- PASS: TestMerkleRootMatchesReferenceVectors (0.00s)
 === RUN   TestInclusionProofsExhaustive
---- PASS: TestInclusionProofsExhaustive (0.26s)
+--- PASS: TestInclusionProofsExhaustive (0.27s)
 === RUN   TestConsistencyProofsExhaustive
---- PASS: TestConsistencyProofsExhaustive (0.35s)
+--- PASS: TestConsistencyProofsExhaustive (0.37s)
 === RUN   TestConsistencyRejectsFork
 --- PASS: TestConsistencyRejectsFork (0.00s)
 === RUN   TestProofArgumentErrors
@@ -829,11 +835,11 @@ ok  	github.com/cockyapple/cairn/internal/vectorgen	200.679s
 --- PASS: FuzzProofs (0.00s)
     --- PASS: FuzzProofs/seed#0 (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/ledger	2.730s
+ok  	github.com/cockyapple/cairn/ledger	2.741s
 === RUN   TestProposalToActivationWithQuorum
 --- PASS: TestProposalToActivationWithQuorum (0.05s)
 === RUN   TestRejectedChangeNeverLoads
---- PASS: TestRejectedChangeNeverLoads (0.08s)
+--- PASS: TestRejectedChangeNeverLoads (0.07s)
 === RUN   TestTryAgainAfterRejection
 --- PASS: TestTryAgainAfterRejection (0.05s)
 === RUN   TestSupersededAndRollback
@@ -845,13 +851,13 @@ ok  	github.com/cockyapple/cairn/ledger	2.730s
 === RUN   TestWorkflowRefusesUnlawfulEntries
 --- PASS: TestWorkflowRefusesUnlawfulEntries (0.02s)
 PASS
-ok  	github.com/cockyapple/cairn/loader	1.402s
+ok  	github.com/cockyapple/cairn/loader	1.392s
 === RUN   TestCrashAtEveryStepOfPersistRecovers
---- PASS: TestCrashAtEveryStepOfPersistRecovers (0.31s)
+--- PASS: TestCrashAtEveryStepOfPersistRecovers (0.44s)
 === RUN   TestFullFlowServedAndVerifiable
---- PASS: TestFullFlowServedAndVerifiable (0.12s)
+--- PASS: TestFullFlowServedAndVerifiable (0.18s)
 === RUN   TestGenesisOnlyFromConfiguredAuthor
---- PASS: TestGenesisOnlyFromConfiguredAuthor (0.02s)
+--- PASS: TestGenesisOnlyFromConfiguredAuthor (0.03s)
 === RUN   TestNoGenesisAuthorMeansUninitialised
 --- PASS: TestNoGenesisAuthorMeansUninitialised (0.01s)
 === RUN   TestRejections
@@ -864,7 +870,7 @@ ok  	github.com/cockyapple/cairn/loader	1.402s
 === RUN   TestRejections/oversized_blob
 === RUN   TestRejections/unchanged
 === RUN   TestRejections/then_accepted
---- PASS: TestRejections (0.06s)
+--- PASS: TestRejections (0.08s)
     --- PASS: TestRejections/height (0.00s)
     --- PASS: TestRejections/prev_hash (0.00s)
     --- PASS: TestRejections/bad_signature (0.00s)
@@ -873,55 +879,55 @@ ok  	github.com/cockyapple/cairn/loader	1.402s
     --- PASS: TestRejections/malformed (0.00s)
     --- PASS: TestRejections/oversized_blob (0.02s)
     --- PASS: TestRejections/unchanged (0.00s)
-    --- PASS: TestRejections/then_accepted (0.01s)
+    --- PASS: TestRejections/then_accepted (0.02s)
 === RUN   TestGovernanceViolationLeavesLogAndDiskUnchanged
---- PASS: TestGovernanceViolationLeavesLogAndDiskUnchanged (0.04s)
+--- PASS: TestGovernanceViolationLeavesLogAndDiskUnchanged (0.05s)
 === RUN   TestFutureEntryRefusedByServerClock
---- PASS: TestFutureEntryRefusedByServerClock (0.03s)
+--- PASS: TestFutureEntryRefusedByServerClock (0.06s)
 === RUN   TestRateLimit
---- PASS: TestRateLimit (0.06s)
+--- PASS: TestRateLimit (0.08s)
 === RUN   TestStaleSubmissionsAreNotCharged
---- PASS: TestStaleSubmissionsAreNotCharged (0.03s)
+--- PASS: TestStaleSubmissionsAreNotCharged (0.05s)
 === RUN   TestRepeatedIdenticalSignatureIsNotCharged
---- PASS: TestRepeatedIdenticalSignatureIsNotCharged (0.05s)
+--- PASS: TestRepeatedIdenticalSignatureIsNotCharged (0.07s)
 === RUN   TestForgedSubmissionsDoNotSpendAnotherKeysBudget
---- PASS: TestForgedSubmissionsDoNotSpendAnotherKeysBudget (0.04s)
+--- PASS: TestForgedSubmissionsDoNotSpendAnotherKeysBudget (0.07s)
 === RUN   TestRestartPersistsAndRechecks
---- PASS: TestRestartPersistsAndRechecks (0.13s)
+--- PASS: TestRestartPersistsAndRechecks (0.20s)
 === RUN   TestTornTailIsCut
---- PASS: TestTornTailIsCut (0.03s)
+--- PASS: TestTornTailIsCut (0.07s)
 === RUN   TestOpenRefusesDamagedStores
 === RUN   TestOpenRefusesDamagedStores/flipped_entry_byte
 === RUN   TestOpenRefusesDamagedStores/misnamed_blob
 === RUN   TestOpenRefusesDamagedStores/misnamed_supporting_blob
 === RUN   TestOpenRefusesDamagedStores/missing_payload_blob
 === RUN   TestOpenRefusesDamagedStores/bad_checkpoint
---- PASS: TestOpenRefusesDamagedStores (0.41s)
-    --- PASS: TestOpenRefusesDamagedStores/flipped_entry_byte (0.10s)
-    --- PASS: TestOpenRefusesDamagedStores/misnamed_blob (0.09s)
-    --- PASS: TestOpenRefusesDamagedStores/misnamed_supporting_blob (0.03s)
-    --- PASS: TestOpenRefusesDamagedStores/missing_payload_blob (0.10s)
-    --- PASS: TestOpenRefusesDamagedStores/bad_checkpoint (0.10s)
+--- PASS: TestOpenRefusesDamagedStores (0.69s)
+    --- PASS: TestOpenRefusesDamagedStores/flipped_entry_byte (0.15s)
+    --- PASS: TestOpenRefusesDamagedStores/misnamed_blob (0.15s)
+    --- PASS: TestOpenRefusesDamagedStores/misnamed_supporting_blob (0.07s)
+    --- PASS: TestOpenRefusesDamagedStores/missing_payload_blob (0.17s)
+    --- PASS: TestOpenRefusesDamagedStores/bad_checkpoint (0.15s)
 === RUN   TestCheckpointAggregation
---- PASS: TestCheckpointAggregation (0.15s)
+--- PASS: TestCheckpointAggregation (0.20s)
 === RUN   TestQueryValidation
---- PASS: TestQueryValidation (0.02s)
+--- PASS: TestQueryValidation (0.03s)
 === RUN   TestStoreAndLogCaps
---- PASS: TestStoreAndLogCaps (0.07s)
+--- PASS: TestStoreAndLogCaps (0.13s)
 === RUN   TestConcurrentAppendsExactlyOneWins
---- PASS: TestConcurrentAppendsExactlyOneWins (0.03s)
+--- PASS: TestConcurrentAppendsExactlyOneWins (0.07s)
 === RUN   TestInterruptedAppendIsSettledOnRestart
 === RUN   TestInterruptedAppendIsSettledOnRestart/entry_never_committed:_staged_blobs_are_dropped
 === RUN   TestInterruptedAppendIsSettledOnRestart/entry_committed:_staged_blobs_are_finished
 === RUN   TestInterruptedAppendIsSettledOnRestart/junk_height_file_is_treated_as_uncommitted
 === RUN   TestInterruptedAppendIsSettledOnRestart/a_normal_append_leaves_no_staging_behind
---- PASS: TestInterruptedAppendIsSettledOnRestart (0.16s)
-    --- PASS: TestInterruptedAppendIsSettledOnRestart/entry_never_committed:_staged_blobs_are_dropped (0.02s)
-    --- PASS: TestInterruptedAppendIsSettledOnRestart/entry_committed:_staged_blobs_are_finished (0.02s)
-    --- PASS: TestInterruptedAppendIsSettledOnRestart/junk_height_file_is_treated_as_uncommitted (0.02s)
-    --- PASS: TestInterruptedAppendIsSettledOnRestart/a_normal_append_leaves_no_staging_behind (0.09s)
+--- PASS: TestInterruptedAppendIsSettledOnRestart (0.27s)
+    --- PASS: TestInterruptedAppendIsSettledOnRestart/entry_never_committed:_staged_blobs_are_dropped (0.04s)
+    --- PASS: TestInterruptedAppendIsSettledOnRestart/entry_committed:_staged_blobs_are_finished (0.04s)
+    --- PASS: TestInterruptedAppendIsSettledOnRestart/junk_height_file_is_treated_as_uncommitted (0.04s)
+    --- PASS: TestInterruptedAppendIsSettledOnRestart/a_normal_append_leaves_no_staging_behind (0.15s)
 === RUN   TestHugeBlobLengthIsRefusedNotPanicked
---- PASS: TestHugeBlobLengthIsRefusedNotPanicked (0.02s)
+--- PASS: TestHugeBlobLengthIsRefusedNotPanicked (0.04s)
 === RUN   TestSpecListsEveryPackageCode
 --- PASS: TestSpecListsEveryPackageCode (0.00s)
 === RUN   FuzzAppend
@@ -933,7 +939,7 @@ ok  	github.com/cockyapple/cairn/loader	1.402s
     --- PASS: FuzzAppend/seed#1 (0.00s)
     --- PASS: FuzzAppend/seed#2 (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/logserver	2.826s
+ok  	github.com/cockyapple/cairn/logserver	3.850s
 === RUN   TestSpecExampleVerifies
 --- PASS: TestSpecExampleVerifies (0.00s)
 === RUN   TestRoundTrip
@@ -943,7 +949,7 @@ ok  	github.com/cockyapple/cairn/logserver	2.826s
 === RUN   TestQuorumAndThreshold
 --- PASS: TestQuorumAndThreshold (0.02s)
 === RUN   TestUnknownSignersAreIgnoredKnownFailuresReject
---- PASS: TestUnknownSignersAreIgnoredKnownFailuresReject (0.02s)
+--- PASS: TestUnknownSignersAreIgnoredKnownFailuresReject (0.03s)
 === RUN   TestDuplicateSignerRejected
 --- PASS: TestDuplicateSignerRejected (0.01s)
 === RUN   TestValidatorSignatureIsNotACosignature
@@ -953,13 +959,13 @@ ok  	github.com/cockyapple/cairn/logserver	2.826s
 === RUN   TestNoteFramingIsStrict
 --- PASS: TestNoteFramingIsStrict (0.01s)
 === RUN   TestOriginMismatchAndConfig
---- PASS: TestOriginMismatchAndConfig (0.01s)
+--- PASS: TestOriginMismatchAndConfig (0.02s)
 === RUN   TestSignersRejectBadInput
 --- PASS: TestSignersRejectBadInput (0.00s)
 === RUN   TestVKeyRejectsMismatch
 --- PASS: TestVKeyRejectsMismatch (0.00s)
 === RUN   TestVerifyLogBindsNoteToEntries
---- PASS: TestVerifyLogBindsNoteToEntries (0.04s)
+--- PASS: TestVerifyLogBindsNoteToEntries (0.03s)
 === RUN   TestNoteAndNativeCheckpointAgree
 --- PASS: TestNoteAndNativeCheckpointAgree (0.02s)
 === RUN   TestNativeSignatureInputCannotBeANoteText
@@ -973,7 +979,7 @@ ok  	github.com/cockyapple/cairn/logserver	2.826s
     --- PASS: FuzzVerify/seed#1 (0.00s)
     --- PASS: FuzzVerify/seed#2 (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/note	1.195s
+ok  	github.com/cockyapple/cairn/note	1.206s
 === RUN   TestOpenAI
 --- PASS: TestOpenAI (0.01s)
 === RUN   TestAnthropic
@@ -989,7 +995,7 @@ ok  	github.com/cockyapple/cairn/note	1.195s
 === RUN   TestContextCancel
 --- PASS: TestContextCancel (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/provider	1.039s
+ok  	github.com/cockyapple/cairn/provider	1.036s
 === RUN   TestCloneSharesNothingMutable
 --- PASS: TestCloneSharesNothingMutable (0.00s)
 === RUN   TestStoreCopiesTheCallersSlice
@@ -997,7 +1003,7 @@ ok  	github.com/cockyapple/cairn/provider	1.039s
 === RUN   TestLoadBundleRefusesAnOversizedLog
 --- PASS: TestLoadBundleRefusesAnOversizedLog (0.00s)
 === RUN   TestCouncilOfMixedReviewersReachesQuorum
---- PASS: TestCouncilOfMixedReviewersReachesQuorum (0.04s)
+--- PASS: TestCouncilOfMixedReviewersReachesQuorum (0.05s)
 === RUN   TestOneRejectionBlocksForGood
 --- PASS: TestOneRejectionBlocksForGood (0.04s)
 === RUN   TestSilenceIsNotApproval
@@ -1037,7 +1043,7 @@ ok  	github.com/cockyapple/cairn/provider	1.039s
 === RUN   TestIntentPublishedKeepsTheBlobOnlyWhenTheLogTakesTheEntry
 --- PASS: TestIntentPublishedKeepsTheBlobOnlyWhenTheLogTakesTheEntry (0.05s)
 PASS
-ok  	github.com/cockyapple/cairn/review	1.793s
+ok  	github.com/cockyapple/cairn/review	1.772s
 === RUN   TestRoundTrip
 --- PASS: TestRoundTrip (0.00s)
 === RUN   TestBigEndianLayout
@@ -1051,106 +1057,106 @@ ok  	github.com/cockyapple/cairn/review	1.793s
 === RUN   TestErrorIsSticky
 --- PASS: TestErrorIsSticky (0.00s)
 PASS
-ok  	github.com/cockyapple/cairn/wire	1.021s
+ok  	github.com/cockyapple/cairn/wire	1.022s
 === RUN   TestCosignCompletesCheckpoint
---- PASS: TestCosignCompletesCheckpoint (0.14s)
+--- PASS: TestCosignCompletesCheckpoint (0.24s)
 === RUN   TestValidatorFirstThenWitnessCompletes
---- PASS: TestValidatorFirstThenWitnessCompletes (0.12s)
+--- PASS: TestValidatorFirstThenWitnessCompletes (0.17s)
 === RUN   TestSignsAnEarlierPrefixOnRequest
---- PASS: TestSignsAnEarlierPrefixOnRequest (0.11s)
+--- PASS: TestSignsAnEarlierPrefixOnRequest (0.18s)
 === RUN   TestGrowthReusesWhatItHolds
---- PASS: TestGrowthReusesWhatItHolds (0.26s)
+--- PASS: TestGrowthReusesWhatItHolds (0.35s)
 === RUN   TestAColdCycleReadsTheLogOnce
---- PASS: TestAColdCycleReadsTheLogOnce (0.11s)
+--- PASS: TestAColdCycleReadsTheLogOnce (0.17s)
 === RUN   TestARollbackIsAnAlarmEvenWhenMoreIsRequested
---- PASS: TestARollbackIsAnAlarmEvenWhenMoreIsRequested (0.14s)
+--- PASS: TestARollbackIsAnAlarmEvenWhenMoreIsRequested (0.20s)
 === RUN   TestIdempotentAtSameSize
---- PASS: TestIdempotentAtSameSize (0.14s)
+--- PASS: TestIdempotentAtSameSize (0.21s)
 === RUN   TestRefusesAForkAtTheSameSize
---- PASS: TestRefusesAForkAtTheSameSize (0.20s)
+--- PASS: TestRefusesAForkAtTheSameSize (0.33s)
 === RUN   TestRefusesAForkThatGrewLonger
---- PASS: TestRefusesAForkThatGrewLonger (0.32s)
+--- PASS: TestRefusesAForkThatGrewLonger (0.48s)
 === RUN   TestRefusesAShrunkLog
---- PASS: TestRefusesAShrunkLog (0.13s)
+--- PASS: TestRefusesAShrunkLog (0.20s)
 === RUN   TestRecoversWhenTheServerReturnsToTheTruth
---- PASS: TestRecoversWhenTheServerReturnsToTheTruth (0.21s)
+--- PASS: TestRecoversWhenTheServerReturnsToTheTruth (0.33s)
 === RUN   TestRefusesALogThatBreaksTheRules
 --- PASS: TestRefusesALogThatBreaksTheRules (0.01s)
 === RUN   TestRefusesFutureDatedEntriesByItsOwnClock
---- PASS: TestRefusesFutureDatedEntriesByItsOwnClock (0.20s)
+--- PASS: TestRefusesFutureDatedEntriesByItsOwnClock (0.29s)
 === RUN   TestBlobProblemsAreTheServersFaultNotTheLogs
 === RUN   TestBlobProblemsAreTheServersFaultNotTheLogs/missing
 === RUN   TestBlobProblemsAreTheServersFaultNotTheLogs/altered
 === RUN   TestBlobProblemsAreTheServersFaultNotTheLogs/oversized
---- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs (0.29s)
-    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/missing (0.10s)
-    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/altered (0.10s)
-    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/oversized (0.09s)
+--- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs (0.43s)
+    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/missing (0.15s)
+    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/altered (0.14s)
+    --- PASS: TestBlobProblemsAreTheServersFaultNotTheLogs/oversized (0.13s)
 === RUN   TestBlobCountAndSizeLimits
---- PASS: TestBlobCountAndSizeLimits (0.19s)
+--- PASS: TestBlobCountAndSizeLimits (0.27s)
 === RUN   TestOnlyAnAdmittedWitnessSigns
---- PASS: TestOnlyAnAdmittedWitnessSigns (0.20s)
+--- PASS: TestOnlyAnAdmittedWitnessSigns (0.28s)
 === RUN   TestGenesisPin
---- PASS: TestGenesisPin (0.21s)
+--- PASS: TestGenesisPin (0.27s)
 === RUN   TestMemoryIsWrittenBeforeTheSignatureIsSent
---- PASS: TestMemoryIsWrittenBeforeTheSignatureIsSent (0.12s)
+--- PASS: TestMemoryIsWrittenBeforeTheSignatureIsSent (0.15s)
 === RUN   TestServerRefusalIsReported
---- PASS: TestServerRefusalIsReported (0.11s)
+--- PASS: TestServerRefusalIsReported (0.15s)
 === RUN   TestHostileServerResponses
-=== RUN   TestHostileServerResponses/no_size_header
-=== RUN   TestHostileServerResponses/size_not_a_number
-=== RUN   TestHostileServerResponses/claims_entries,_sends_none
-=== RUN   TestHostileServerResponses/partial_entry
-=== RUN   TestHostileServerResponses/garbage_entry
 === RUN   TestHostileServerResponses/server_error
 === RUN   TestHostileServerResponses/redirect
-=== RUN   TestHostileServerResponses/huge_size
+=== RUN   TestHostileServerResponses/no_size_header
 === RUN   TestHostileServerResponses/size_overflows
+=== RUN   TestHostileServerResponses/partial_entry
+=== RUN   TestHostileServerResponses/garbage_entry
+=== RUN   TestHostileServerResponses/size_not_a_number
+=== RUN   TestHostileServerResponses/huge_size
+=== RUN   TestHostileServerResponses/claims_entries,_sends_none
 === RUN   TestHostileServerResponses/body_over_the_page_limit
---- PASS: TestHostileServerResponses (0.90s)
-    --- PASS: TestHostileServerResponses/no_size_header (0.09s)
-    --- PASS: TestHostileServerResponses/size_not_a_number (0.09s)
-    --- PASS: TestHostileServerResponses/claims_entries,_sends_none (0.09s)
-    --- PASS: TestHostileServerResponses/partial_entry (0.09s)
-    --- PASS: TestHostileServerResponses/garbage_entry (0.10s)
-    --- PASS: TestHostileServerResponses/server_error (0.09s)
-    --- PASS: TestHostileServerResponses/redirect (0.09s)
-    --- PASS: TestHostileServerResponses/huge_size (0.09s)
-    --- PASS: TestHostileServerResponses/size_overflows (0.09s)
-    --- PASS: TestHostileServerResponses/body_over_the_page_limit (0.09s)
+--- PASS: TestHostileServerResponses (1.30s)
+    --- PASS: TestHostileServerResponses/server_error (0.13s)
+    --- PASS: TestHostileServerResponses/redirect (0.13s)
+    --- PASS: TestHostileServerResponses/no_size_header (0.13s)
+    --- PASS: TestHostileServerResponses/size_overflows (0.13s)
+    --- PASS: TestHostileServerResponses/partial_entry (0.13s)
+    --- PASS: TestHostileServerResponses/garbage_entry (0.13s)
+    --- PASS: TestHostileServerResponses/size_not_a_number (0.13s)
+    --- PASS: TestHostileServerResponses/huge_size (0.13s)
+    --- PASS: TestHostileServerResponses/claims_entries,_sends_none (0.13s)
+    --- PASS: TestHostileServerResponses/body_over_the_page_limit (0.13s)
 === RUN   TestUnreachableServer
 --- PASS: TestUnreachableServer (0.01s)
 === RUN   TestEmptyLog
 --- PASS: TestEmptyLog (0.01s)
 === RUN   TestStateFileIsNotIgnoredWhenDamaged
---- PASS: TestStateFileIsNotIgnoredWhenDamaged (0.09s)
+--- PASS: TestStateFileIsNotIgnoredWhenDamaged (0.13s)
 === RUN   TestStateFileWithLooseModeIsRefused
---- PASS: TestStateFileWithLooseModeIsRefused (0.10s)
+--- PASS: TestStateFileWithLooseModeIsRefused (0.14s)
 === RUN   TestADrippingServerIsRefusedNotFollowed
---- PASS: TestADrippingServerIsRefusedNotFollowed (0.09s)
+--- PASS: TestADrippingServerIsRefusedNotFollowed (0.13s)
 === RUN   TestStateIsPrivateAndAtomic
---- PASS: TestStateIsPrivateAndAtomic (0.10s)
+--- PASS: TestStateIsPrivateAndAtomic (0.14s)
 === RUN   TestStateWriteFailureStopsSigning
---- PASS: TestStateWriteFailureStopsSigning (0.10s)
+--- PASS: TestStateWriteFailureStopsSigning (0.14s)
 === RUN   TestNewValidatesConfig
 --- PASS: TestNewValidatesConfig (0.00s)
 === RUN   TestConcurrentCyclesAreSerialised
---- PASS: TestConcurrentCyclesAreSerialised (0.21s)
+--- PASS: TestConcurrentCyclesAreSerialised (0.23s)
 === RUN   TestRunSignsAndReportsOnce
---- PASS: TestRunSignsAndReportsOnce (0.18s)
+--- PASS: TestRunSignsAndReportsOnce (0.21s)
 === RUN   TestCodesAreDocumented
 --- PASS: TestCodesAreDocumented (0.00s)
 === RUN   TestRefusesAChainThatDoesNotLink
 --- PASS: TestRefusesAChainThatDoesNotLink (0.01s)
 === RUN   TestRefusesALogOverItsEntryLimit
---- PASS: TestRefusesALogOverItsEntryLimit (0.09s)
+--- PASS: TestRefusesALogOverItsEntryLimit (0.13s)
 === RUN   TestAResponseThatIsNotWholeEntriesIsUnavailable
---- PASS: TestAResponseThatIsNotWholeEntriesIsUnavailable (0.09s)
+--- PASS: TestAResponseThatIsNotWholeEntriesIsUnavailable (0.13s)
 === RUN   TestSignsTheEpochInForce
---- PASS: TestSignsTheEpochInForce (0.13s)
+--- PASS: TestSignsTheEpochInForce (0.19s)
 === RUN   TestRunReportsWhenTheCheckpointBecomesComplete
---- PASS: TestRunReportsWhenTheCheckpointBecomesComplete (0.13s)
+--- PASS: TestRunReportsWhenTheCheckpointBecomesComplete (0.17s)
 === RUN   TestRefusesAnEntryWithTheWrongHeight
 --- PASS: TestRefusesAnEntryWithTheWrongHeight (0.01s)
 PASS
-ok  	github.com/cockyapple/cairn/witness	6.469s
+ok  	github.com/cockyapple/cairn/witness	8.834s

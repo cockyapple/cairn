@@ -65,6 +65,9 @@ type File struct {
 	MainRoot    string           `json:"main_chain_root"`
 	Chains      []ChainCase      `json:"chain_cases"`
 	Checkpoints []CheckpointCase `json:"checkpoint_cases"`
+	UseBlobs    []UseVec         `json:"use_blobs"`
+	Openings    []OpeningVec     `json:"openings"`
+	Locate      []LocateCase     `json:"locate_cases"`
 }
 
 const baseTime = 1790726400 // 2026-09-30T00:00:00Z
@@ -219,6 +222,9 @@ func Build() *File {
 	f.Chains = append(f.Chains, ChainCase{Name: "main_chain", EntriesHex: hashes(chain), Valid: true})
 	f.Chains = append(f.Chains, b.invalidChains(chain)...)
 	f.Checkpoints = b.checkpointCases(chain, trust0)
+	f.UseBlobs = b.useVectors()
+	f.Openings = b.openingVectors()
+	f.Locate = b.locateCases()
 	return f
 }
 

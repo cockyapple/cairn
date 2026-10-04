@@ -145,8 +145,12 @@ says why. Do not claim more than that.
 
 `testdata/vectors-v1.json` contains an 8-entry chain covering every kind, Merkle
 roots for 0 to 9 leaves, payload encodings, and invalid chain and checkpoint
-cases with exact expected error codes. Keys are derived from public seeds and
-are for testing only. The vectors are language-neutral so an independent
+cases with exact expected error codes. It also holds the formats of 10.4.1: use
+blobs (valid version 1 and 2 blobs and the ways one fails to decode), openings
+(valid, and each way one fails to match its commitment) and `locate_cases` (a
+small log, the blobs a verifier holds, a commitment, and the places it appears).
+These sections were added without changing the 8-entry chain. Keys and salts are derived from public
+seeds and are for testing only. The vectors are language-neutral so an independent
 verifier can be written without reading the Go.
 
 ## 10. Governance rules
@@ -434,6 +438,14 @@ hash (`governance.CheckOpening`) and then finds where the commitment appears
 entries Locate returns. An empty result means the commitment was never made on
 this log only if the blobs given are the complete set the replay already needs
 (every ACTION payload and every use blob); Locate skips what it cannot read.
+Locate returns locations in log order, and within one ACTION in the order `args`,
+`use`, `result`; one commitment can sit in more than one field of the same ACTION and
+then appears once for each. The `locate_cases` vectors fix this order.
+
+The 16 MiB limit on a string or bytes field is covered by two vectors whose
+length prefix is 16 MiB plus one. They are short, so a reader with no limit also
+refuses them, as truncated; the file does not carry a 16 MiB blob to tell the
+two apart. A second implementation should check the limit itself.
 
 ### 10.5 What is not enforced, and why
 
