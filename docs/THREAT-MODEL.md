@@ -65,7 +65,7 @@ catalogues 36 such cases (IDs C-01 to O-01), says for each whether the docs alre
 what to watch for, and a mitigation that does not change the core. It also lists what Cairn
 cannot prevent by design. The short version:
 
-- A passing `cairn-verify` means the log is authentic and followed its governance rules. It does
+- A passing `cairn-verify` means the log is internally consistent and followed its governance rules. It does
   not mean an agent is safe, that its payloads are true, or that reviewers were independent.
   The tool now prints that on every success.
 - Cairn does not make a captured quorum, a rubber-stamping reviewer or an off-gatekeeper action

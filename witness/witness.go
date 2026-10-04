@@ -455,7 +455,7 @@ func (w *Witness) Cycle(ctx context.Context, size uint64) (Result, error) {
 
 	opt := w.cfg.Options
 	if w.cfg.Clock != nil {
-		opt.Now, opt.MaxSkew = uint64(w.cfg.Clock().Unix()), w.cfg.MaxSkew
+		opt.Now, opt.MaxSkew = governance.NowSeconds(w.cfg.Clock()), w.cfg.MaxSkew
 	}
 	bf := &blobFetcher{w: w, ctx: ctx}
 	st, err := governance.Replay(entries, bf, opt)

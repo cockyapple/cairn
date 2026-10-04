@@ -1,8 +1,7 @@
 # Prompt-injection defense
 
 > **Status: design.** This document describes the intended design. What is built today is
-> listed in the README status table; most of what follows (capability grants, delegation,
-> fleet budgets, model scoring, the injection benchmark) is not implemented.
+> listed in the README status table; the capability grant and delegation formats and their enforcement on replay are built (SPEC 10.3.2 to 10.3.4), but most of what follows (the per-agent sandbox, fleet budgets, model scoring, the injection benchmark) is not implemented.
 
 ## The honest claim
 

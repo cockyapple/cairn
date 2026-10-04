@@ -54,7 +54,8 @@ func NewCheckpoint(epoch uint64, entries []Entry) Checkpoint {
 	return c
 }
 
-// Cosign appends a signature by priv. It does not deduplicate.
+// Cosign appends a signature by priv. It does not deduplicate, and it panics on a
+// malformed private key, as ed25519.Sign does.
 func (s *SignedCheckpoint) Cosign(priv ed25519.PrivateKey) {
 	var cs CheckpointSig
 	copy(cs.Public[:], priv.Public().(ed25519.PublicKey))
@@ -153,6 +154,8 @@ func VerifyCheckpoint(sc *SignedCheckpoint, entries []Entry, trust *TrustConfig)
 			validators++
 		case RoleWitness:
 			witnesses++
+		default:
+			return fail(CodeUnknownSigner, "signature by a key whose role does not sign checkpoints")
 		}
 	}
 	if validators < ValidatorQuorum(trust.count(RoleValidator)) {

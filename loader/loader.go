@@ -11,6 +11,7 @@
 package loader
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 
@@ -118,7 +119,7 @@ func (g *Gate) Load(target string, now uint64) (*Loaded, error) {
 		return nil, fail(CodeMissingBlob, "the activated artifact is not available or does not match its hash")
 	}
 	return &Loaded{
-		Target: target, Artifact: b, Hash: a.Proposal.DiffHash, ProposalHash: a.ProposalHash,
+		Target: target, Artifact: bytes.Clone(b), Hash: a.Proposal.DiffHash, ProposalHash: a.ProposalHash,
 		ActivatedAt: a.ActivatedAt, EffectiveAfter: a.EffectiveAfter,
 	}, nil
 }

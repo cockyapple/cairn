@@ -10,7 +10,7 @@ THREAT-MODEL, CONSTITUTION, SPEC, INJECTION-DEFENSE, MODELS-AND-FLEETS, LOG-SERV
 curated by hand: duplicate scenarios merged, claims checked against the repository, mitigations
 rewritten so none implies a feature that does not exist. The IDs are the reviewer's. The
 reviewer read the docs, not the running system, so this is a map of where to look, not a
-penetration test. See also [THREAT-MODEL.md](THREAT-MODEL.md), which lists adversaries and
+penetration test. O-02 and W-05 were added after a later Gemini review of the docs. See also [THREAT-MODEL.md](THREAT-MODEL.md), which lists adversaries and
 mitigations at a coarser grain.
 
 Every mitigation here is judged against the rules the core lives by: standard library only, the
@@ -105,11 +105,10 @@ self-run deployment. Both are judgements, not measurements.
 - **Severity / likelihood:** high / medium.
 - **Status:** Acknowledged. SPEC 10.5, "Tier floors for other targets": the log fixes floors only
   for reserved `cairn/` targets; a verifier can pass a `MinTier` policy; the policy is not on the
-  log. **`MinTier` is a library option (`governance.Options`); `cairn-verify` has no flag for
-  it.**
+  log. `MinTier` is a library option (`governance.Options`); `cairn-verify -min-tier N` applies one floor to every target (built after the DeepSeek review).
 - **Watch for:** every T0 activation on a non-reserved target.
 - **Mitigation:** *Operator practice:* keep a floor table for your targets and give every loader
-  the same one. *Candidate, not built:* a CLI flag; recording a policy hash on the log.
+  the same one. *Candidate, not built:* a per-target floor table on the command line; recording a policy hash on the log.
 
 ### G-03 Shortening a timelock with backdated entry times
 - **Actor:** rogue operator, colluding validator, lax consumer.
@@ -438,6 +437,18 @@ self-run deployment. Both are judgements, not measurements.
 - **Mitigation:** *Operator practice:* more witnesses than the threshold, run by different parties.
   Changing the set is a T4 VALIDATORS change, so a dead witness costs the 14-day delay.
 
+### W-05 A witness that replays the whole log in memory
+- **Actor:** a log operator who grows the log; anyone who can append many entries and large blobs.
+- **Example:** the witness checks the whole log under the governance rules on every checkpoint, so its
+  time and memory grow with the log. A large enough log makes the witness slow or kill it, and it
+  stops signing.
+- **Severity / likelihood:** medium / medium.
+- **Status:** **New gap** (found by an AI review of the docs). The log server's caps (`MaxEntries`,
+  `MaxStoreBytes`) bound this only if the operator keeps them below what the witness can hold.
+- **Watch for:** witness memory and replay time against log size; a witness that stops signing.
+- **Mitigation:** *Operator practice:* size the witness for the caps, and keep the caps below it.
+  *Candidate, not built:* an incremental witness replay.
+
 ## 7. False assurance and social misuse
 
 ### F-01 "Verify OK" sold as "the agent is safe"
@@ -504,6 +515,20 @@ self-run deployment. Both are judgements, not measurements.
 - **Mitigation:** *Operator practice:* hardware keys, role separation, encrypted backups, a drill for
   losing a quorum, and a written decision on starting a new log (which loses continuity).
   *Candidate, not built:* a CLI warning if a trust key matches a published test key.
+
+### O-02 A stranded intent that nothing can close
+- **Actor:** bad luck; a crash at the wrong moment; an attacker who can kill the gatekeeper.
+- **Example:** the gatekeeper writes an agent's intent, then dies before the completion. It keeps the open
+  intent only in memory, so a restart cannot write the completion, and the replay requires the oldest
+  open intent to be closed before the agent's next ACTION. The agent is stuck.
+- **Severity / likelihood:** medium / medium.
+- **Status:** **New gap** (found by an AI review of the docs, then checked against the gatekeeper code).
+  SPEC 10.4 now names it. There is no recovery entry kind.
+- **Watch for:** an intent open for much longer than the agent's usual action time; an agent whose
+  later actions are all refused by the log with `bad_action_completion` or `bad_action_chain`.
+- **Mitigation:** *Operator practice:* a completion signed by the agent's key with the same
+  `action_type` and `args_hash`, or REVOKE the key and start a new agent. *Candidate, not built:* a
+  gatekeeper that rereads its own open intents from the log at start.
 
 ## 9. Top ten to act on first
 

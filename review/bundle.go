@@ -75,29 +75,41 @@ func LoadBundle(dir string) ([]ledger.Entry, governance.MapBlobs, error) {
 	}
 	blobs := governance.MapBlobs{}
 	var total int64
+	seen := 0
 	for _, f := range files {
 		if !f.Type().IsRegular() {
 			continue
 		}
-		if len(blobs) >= maxBlobs {
+		if seen++; seen > maxBlobs {
 			return nil, nil, fmt.Errorf("more than %d blobs", maxBlobs)
 		}
 		p := filepath.Join(dir, "blobs", f.Name())
-		fi, err := os.Stat(p)
+		b, err := readCapped(p)
 		if err != nil {
 			return nil, nil, err
 		}
-		if fi.Size() > maxBlobBytes {
-			return nil, nil, fmt.Errorf("%s is larger than %d bytes", f.Name(), maxBlobBytes)
-		}
-		if total += fi.Size(); total > maxBlobTotal {
+		if total += int64(len(b)); total > maxBlobTotal {
 			return nil, nil, fmt.Errorf("the blobs add up to more than %d bytes", maxBlobTotal)
-		}
-		b, err := os.ReadFile(p)
-		if err != nil {
-			return nil, nil, err
 		}
 		blobs[ledger.BlobHash(b)] = b
 	}
 	return entries, blobs, nil
+}
+
+// readCapped opens a file once and reads at most maxBlobBytes of it, so a file
+// that grows or is swapped after a size check cannot make the loader hold more.
+func readCapped(p string) ([]byte, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, maxBlobBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxBlobBytes {
+		return nil, fmt.Errorf("%s is larger than %d bytes", filepath.Base(p), maxBlobBytes)
+	}
+	return b, nil
 }

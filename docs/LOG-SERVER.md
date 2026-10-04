@@ -50,8 +50,8 @@ stops accepting appends (`log_broken`) until it is restarted and has rechecked e
 later step fails (renaming a blob out of `staging/`, syncing a directory), the server
 marks itself broken but still reports the append as accepted, because the entry is durable
 and memory now matches disk; returning an error would tell the client to retry an entry
-that is already committed. Every following request fails with `log_broken` until a restart
-repairs the staging area. Files and their parent directories are fsynced.
+that is already committed. Every following append and checkpoint signature fails with `log_broken`, while reads keep
+being served from memory, until a restart repairs the staging area. Files and their parent directories are fsynced.
 
 **What is tested about crashes.** `TestCrashAtEveryStepOfPersistRecovers` runs a real
 append flow and copies the storage directory at every step of `persist` (blobs staged,
@@ -110,8 +110,18 @@ Package-defined codes: `malformed_request`, `not_genesis_author`, `log_uninitial
   (default 1,048,576) bounds it; a streaming or incremental replay is still owed.
 - **Blobs are held in memory** up to `MaxStoreBytes` (default 256 MiB, the same ceiling
   `cairn-verify` accepts, so a log this server accepts is one an outside verifier can load).
+  The server refuses to start with a limit above what `cairn-verify` reads (16 MiB per blob,
+  256 MiB of blobs, 65,536 blobs, 1,048,576 entries).
+- **Unauthenticated reads can cost O(n).** `/v1/status` and checkpoint bodies reuse a small cache of
+  tree roots (16 sizes), but a cache miss, and every inclusion or consistency proof, rebuilds
+  from the leaves. A checkpoint signature from a key outside the trust configuration is refused
+  before any root is computed. Read flooding is still a proxy's job.
 - **One process, one mutex, one disk.** No replication, no high availability. A crash loses
   nothing that was acknowledged; a dead machine stops the log until it returns.
+  A second process on the same directory is refused: the server takes an exclusive lock on
+  `entries.bin` (flock on Unix; on other platforms there is no lock, so run one only).
+- **Blobs reach the server one request at a time.** There is no bulk or remote blob sync; a
+  mirror must fetch each blob by hash.
 - **It serves everything to anyone who can reach it**, blobs included, and has no TLS or
   authentication of its own. Bind it to a private address or put a proxy in front. Rate
   limits apply to admitted keys only; an unauthenticated flood of garbage requests is

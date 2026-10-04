@@ -322,3 +322,27 @@ func contains(a, b []byte) bool {
 	}
 	return false
 }
+
+func TestLoadedArtifactIsACopy(t *testing.T) {
+	l, c, _ := newLog(t)
+	p := must(l.Propose(c.prop, ledger.T2, target, v2, []byte("why"), nil))
+	must(l.Vote(c.rev1, p, ledger.VerdictApprove, []byte("ok")))
+	must(l.Vote(c.sec, p, ledger.VerdictApprove, []byte("ok")))
+	must(l.Activate(c.val, p))
+	g := mustOpen(t, l, c)
+	var start uint64
+	for _, pi := range g.State().Proposals {
+		if pi.Hash == p {
+			start = pi.Time
+		}
+	}
+	at := start + 72*hour
+	first := must(g.Load(target, at))
+	for i := range first.Artifact {
+		first.Artifact[i] ^= 0xff
+	}
+	second := must(g.Load(target, at))
+	if string(second.Artifact) != string(v2) {
+		t.Fatal("a caller changing the loaded bytes changed what the next load returned")
+	}
+}

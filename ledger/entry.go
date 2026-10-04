@@ -115,6 +115,8 @@ func (e *Entry) Hash() Hash {
 }
 
 // Sign sets Author to the key's public half and signs the entry.
+// Sign sets Author and Signature. Like ed25519.Sign it panics if priv is not a
+// well-formed 64-byte private key: that is a caller bug, not an input error.
 func (e *Entry) Sign(priv ed25519.PrivateKey) {
 	copy(e.Author[:], priv.Public().(ed25519.PublicKey))
 	copy(e.Signature[:], ed25519.Sign(priv, sigInput(e)))

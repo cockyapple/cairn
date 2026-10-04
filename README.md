@@ -150,11 +150,17 @@ exists today, and what does not, so nothing is oversold:
 | BFT consensus | **Not yet**: Phase 4 |
 | Injection benchmark, model scoring, attestation | **Not yet**: Phase 5 |
 
-A chain that passes the verifier is **authentic and untampered**. With the governance
+A chain that passes the verifier is **internally consistent and untampered**: its hashes and signatures verify. Whether it is *the* log you meant to check needs a signed checkpoint or note and a genesis you pinned yourself. With the governance
 replay it is also checked for the rules in SPEC section 10, which cover roles, tiers,
 delays, freezes and ACTION ordering. It is not checked for the semantic rules (I4, except the require-grants switch) or
 for anything about what a gatekeeper or agent actually did. Entry times are advisory.
 Do not treat it as more than that.
+
+**What has reviewed this code.** Three AI models, in separate passes: OpenAI (gpt-5.3-codex, highest
+reasoning setting) on the code, Gemini on the documents, DeepSeek on everything. Their findings were
+checked against the repository before anything was changed, and AI reviewers also report problems
+that are not there; the false ones were rejected and are written down in the dev log. No
+professional or independent human audit has been done, and none of this replaces one.
 
 ## Roadmap
 
@@ -202,7 +208,7 @@ go run ./cmd/cairn-verify -entries log.bin -blobs payloads/ -checkpoint cp.bin
 ```
 
 A pass ends with a one-line `note:` on stdout that says what it does not show: the log is
-authentic and followed its rules. That is not proof of what any agent did, that its payloads
+internally consistent and followed its rules (and, without `-checkpoint` or `-note`, was not anchored to any signed tree head). That is not proof of what any agent did, that its payloads
 are true, or that any agent is safe. Scripts should read the exit code, not the text. See
 [docs/ABUSE-CASES.md](docs/ABUSE-CASES.md).
 
@@ -215,7 +221,7 @@ vectors assert exactly, so another language can match them.
 |------|------|
 | [`docs/SPEC.md`](docs/SPEC.md) | Wire format and verification rules, v1 |
 | [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) | Assets, adversaries, mitigations and their status |
-| [`docs/ABUSE-CASES.md`](docs/ABUSE-CASES.md) | 36 ways the framework could be abused or misused, what to watch for, and what cannot be prevented |
+| [`docs/ABUSE-CASES.md`](docs/ABUSE-CASES.md) | 38 ways the framework could be abused or misused, what to watch for, and what cannot be prevented |
 | [`docs/CONSTITUTION.md`](docs/CONSTITUTION.md) | Change tiers and the twelve invariants |
 | [`docs/INJECTION-DEFENSE.md`](docs/INJECTION-DEFENSE.md) | How prompt injection is contained |
 | [`docs/MODELS-AND-FLEETS.md`](docs/MODELS-AND-FLEETS.md) | Any LLM, and many agents at once |

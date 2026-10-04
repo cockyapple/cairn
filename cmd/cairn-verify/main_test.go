@@ -249,7 +249,7 @@ func TestVerifiesANote(t *testing.T) {
 	if code != 0 || !strings.Contains(out, "ok note: size 2, 1 validator signatures and 0 witness") {
 		t.Fatalf("exit %d: %s", code, out)
 	}
-	if !strings.Contains(out, "note: this log is authentic") {
+	if !strings.Contains(out, "note: this log followed its governance rules and carries signatures") {
 		t.Errorf("a note pass must end with the scope notice:\n%s", out)
 	}
 }
@@ -312,5 +312,82 @@ func TestABlobAtTheWireCeilingIsAccepted(t *testing.T) {
 	}
 	if _, err := loadBlobs(dir); err != nil {
 		t.Fatalf("a 2 MiB payload is legal on the wire and must load: %v", err)
+	}
+}
+
+func TestLoadBlobsCountsFilesNotDistinctContents(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 8; i++ {
+		if err := os.WriteFile(filepath.Join(dir, "f"+string(rune('a'+i))), []byte("same"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	old := maxBlobs
+	maxBlobs = 5
+	defer func() { maxBlobs = old }()
+	if _, err := loadBlobs(dir); err == nil {
+		t.Fatal("eight files passed a limit of five because they hold one distinct blob")
+	}
+}
+
+func TestMinTierFlagRefusesALowTierProposal(t *testing.T) {
+	val, prop := testKey("val"), testKey("prop")
+	trust := ledger.TrustConfig{Keys: []ledger.Key{
+		{Role: ledger.RoleValidator, Public: pub(val)},
+		{Role: ledger.RoleProposer, Public: pub(prop)},
+	}}
+	g := ledger.Genesis{SpecVersion: 1, ConstitutionHash: ledger.BlobHash([]byte("c")), Trust: trust}
+	p := ledger.Proposal{Tier: ledger.T0, Target: "agent/app", DiffHash: ledger.BlobHash([]byte("d"))}
+	dir := t.TempDir()
+	blobs := filepath.Join(dir, "blobs")
+	if err := os.Mkdir(blobs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var entries []ledger.Entry
+	var raw []byte
+	for i, s := range []struct {
+		kind ledger.Kind
+		key  ed25519.PrivateKey
+		pl   []byte
+	}{{ledger.KindGenesis, val, g.Encode()}, {ledger.KindProposal, prop, p.Encode()}} {
+		e := ledger.Entry{Height: uint64(i), Kind: s.kind, PayloadHash: ledger.BlobHash(s.pl), Time: 1000 + uint64(i)}
+		if i > 0 {
+			e.PrevHash = entries[i-1].Hash()
+		}
+		e.Sign(s.key)
+		entries = append(entries, e)
+		raw = append(raw, e.Encode()...)
+		if err := os.WriteFile(filepath.Join(blobs, hexOf(ledger.BlobHash(s.pl))), s.pl, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	log := filepath.Join(dir, "log.bin")
+	if err := os.WriteFile(log, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := do("-entries", log, "-blobs", blobs); code != 0 {
+		t.Fatalf("without a floor: exit %d: %s", code, out)
+	}
+	if code, out := do("-entries", log, "-blobs", blobs, "-min-tier", "0"); code != 0 {
+		t.Fatalf("floor 0: exit %d: %s", code, out)
+	}
+	if code, out := do("-entries", log, "-blobs", blobs, "-min-tier", "1"); code != 1 || !strings.Contains(out, "FAIL tier_too_low") {
+		t.Fatalf("floor 1: exit %d: %s", code, out)
+	}
+	for _, bad := range []string{"-1", "5", "x"} {
+		if code, _ := do("-entries", log, "-blobs", blobs, "-min-tier", bad); code != 2 {
+			t.Errorf("-min-tier %s: exit %d, want 2", bad, code)
+		}
+	}
+}
+
+func TestScopeNoticeDoesNotCallAnUnanchoredLogAuthentic(t *testing.T) {
+	f := build(t, "agent")
+	code, out := do("-entries", f.entries, "-blobs", f.blobs)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, out)
+	}
+	if strings.Contains(out, "authentic") || !strings.Contains(out, "no checkpoint or note was verified") {
+		t.Errorf("a pass with no checkpoint or note must say it is not anchored:\n%s", out)
 	}
 }

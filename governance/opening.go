@@ -60,7 +60,7 @@ func Locate(entries []ledger.Entry, blobs map[ledger.Hash][]byte, commit ledger.
 			continue
 		}
 		pb, ok := blobs[e.PayloadHash]
-		if !ok {
+		if !ok || ledger.BlobHash(pb) != e.PayloadHash {
 			continue
 		}
 		a, err := ledger.DecodeAction(pb)
@@ -70,7 +70,7 @@ func Locate(entries []ledger.Entry, blobs map[ledger.Hash][]byte, commit ledger.
 		if a.ArgsHash == commit {
 			out = append(out, Location{e.Height, "args"})
 		}
-		if ub, ok := blobs[a.ArgsHash]; ok {
+		if ub, ok := blobs[a.ArgsHash]; ok && ledger.BlobHash(ub) == a.ArgsHash {
 			if u, err := DecodeUse(ub); err == nil && u.Commit != nil && *u.Commit == commit {
 				out = append(out, Location{e.Height, "use"})
 			}

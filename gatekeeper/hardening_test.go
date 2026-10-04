@@ -62,3 +62,13 @@ func TestHandlerRefusalIsRecordedAsARefusal(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+func TestStrictRejectsNullAsAString(t *testing.T) {
+	v := gatekeeper.Strict(gatekeeper.Field{Name: "a"})
+	if err := v([]byte(`{"a":null}`)); err == nil {
+		t.Fatal("a JSON null was accepted as a string")
+	}
+	if err := v([]byte(`{"a":""}`)); err != nil {
+		t.Fatalf("an empty string is still a string: %v", err)
+	}
+}

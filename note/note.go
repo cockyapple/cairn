@@ -107,7 +107,7 @@ func VKey(name string, sigType byte, pub [32]byte) (string, error) {
 // ParseVKey is the inverse of VKey. It rejects a key whose stated id does not
 // match the name, type and public key.
 func ParseVKey(s string) (name string, sigType byte, pub [32]byte, err error) {
-	parts := strings.Split(s, "+")
+	parts := strings.SplitN(s, "+", 3) // the base64 part may itself contain "+"
 	if len(parts) != 3 || !validName(parts[0]) {
 		return "", 0, pub, fail(CodeBadNote, "malformed verifier key")
 	}

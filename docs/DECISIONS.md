@@ -167,7 +167,9 @@ Decision: `governance.Options` gains `MinTier` (a tier floor per target;
 `tier_too_low`) and `Now` with `MaxSkew` (entries dated later than the
 verifier's clock allows are rejected; `future_entry`). Both are inputs to the
 verifier, not entries, so every verifier must be given the same policy; the CLI
-exposes the clock as `-use-clock`. Cost: agreement on policy is out of band.
+exposes the clock as `-use-clock` and the floor as `-min-tier N` (one floor for every
+target; a per-target floor is the library option only). Cost: agreement on policy is out of
+band.
 
 **ADR-19. Fixes from the Phase 2 audit (DECIDED, Phase 2).**
 Why: a second Gemini audit of the whole phase found four real problems. (1) An
@@ -200,7 +202,7 @@ gain in the governance layer. The mapping is decided and built (see the C2SP add
 (2) *`REVOKE`* (BUILT). A new entry kind (7), no delay, signed by one validator or security
 reviewer, naming one key. As built it covers agent and proposer keys only and is permanent:
 a single signer must not be able to remove a reviewer or validator, which would let one
-compromised key stall quorum. Those roles still change through T4 VALIDATORS. A revoked
+compromised key stall quorum. Those roles still change through T4 VALIDATORS. One signer is enough for agent and proposer keys because a wrongful revoke costs little (that key is replaced by a new one) while waiting for a quorum would leave a stolen key live; a rogue signer can still disable agents, which ABUSE-CASES G-05 records. A revoked
 proposer cannot get an unactivated proposal activated. Original wording: signed by a security reviewer or a validator
 quorum, naming one key. The governance replay stops accepting that key from the next
 entry. It must be limited to revoking, never granting, so it cannot be used to seize

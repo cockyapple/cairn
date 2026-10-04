@@ -46,7 +46,7 @@ func run(args []string, errw io.Writer) int {
 	}
 	var opt governance.Options
 	if *useClock {
-		opt.Now, opt.MaxSkew = uint64(time.Now().Unix()), 300
+		opt.Now, opt.MaxSkew = governance.NowSeconds(time.Now()), 300
 	}
 	if *constHex != "" {
 		b, err := hex.DecodeString(*constHex)

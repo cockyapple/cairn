@@ -2,10 +2,12 @@ package governance
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -224,11 +226,23 @@ func (r *replayer) withdraw(k [32]byte) {
 }
 
 func (r *replayer) withdrawDerived(k [32]byte) {
-	delete(r.grants, k)
+	children := map[[32]byte][][32]byte{}
 	for c, g := range r.grants {
-		if g.parent != nil && *g.parent == k {
-			r.withdrawDerived(c)
+		if g.parent != nil {
+			children[*g.parent] = append(children[*g.parent], c)
 		}
+	}
+	stack := [][32]byte{k}
+	seen := map[[32]byte]bool{}
+	for len(stack) > 0 {
+		x := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[x] {
+			continue
+		}
+		seen[x] = true
+		delete(r.grants, x)
+		stack = append(stack, children[x]...)
 	}
 }
 
@@ -346,13 +360,10 @@ func (r *replayer) grantInfos(now uint64) []GrantInfo {
 }
 
 func sortGrantInfos(s []GrantInfo) {
-	for i := 1; i < len(s); i++ {
-		for j := i; j > 0; j-- {
-			a, b := s[j-1], s[j]
-			if a.Height < b.Height || (a.Height == b.Height && bytes.Compare(a.Agent[:], b.Agent[:]) < 0) {
-				break
-			}
-			s[j-1], s[j] = b, a
+	slices.SortFunc(s, func(a, b GrantInfo) int {
+		if c := cmp.Compare(a.Height, b.Height); c != 0 {
+			return c
 		}
-	}
+		return bytes.Compare(a.Agent[:], b.Agent[:])
+	})
 }

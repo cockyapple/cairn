@@ -57,7 +57,7 @@ forced split view.
 
 
 *Misuse review (BUILT as documentation, plus one code change).* An OpenAI adversarial review of the
-docs produced [docs/ABUSE-CASES.md](docs/ABUSE-CASES.md): 36 cases, each marked acknowledged or
+docs produced [docs/ABUSE-CASES.md](docs/ABUSE-CASES.md): 38 cases, each marked acknowledged or
 a new gap, with what to watch for and a mitigation that leaves the core alone. `cairn-verify`
 now ends every successful run with a one-line `note:` saying a pass is not proof of what an
 agent did or that it is safe. **Still owed from that review, none built:** a genesis pin and a
@@ -170,7 +170,7 @@ trust classes, multi-agent adversarial tests, third-party review.
 *Added after the survey (planned, not built):* an optional external-policy adapter (Cedar or
 OPA) behind the gatekeeper, outside the core, for operators who already use one.
 
-## Ordering problems the external audit named
+## Ordering problems the external reviews named
 
 Some claims lean on something a later phase builds. These are known and are not hidden:
 timelocks run on entry times (claims) before there is a trusted time source; split-view

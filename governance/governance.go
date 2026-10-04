@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/cockyapple/cairn/ledger"
 )
@@ -644,4 +645,14 @@ func (r *replayer) revoke(e *ledger.Entry, b []byte) error {
 	r.withdraw(v.Key)
 	r.st.Revocations = append(r.st.Revocations, Revocation{Key: v.Key, Role: role, Height: e.Height, By: e.Author, ReasonHash: v.ReasonHash})
 	return nil
+}
+
+// NowSeconds converts a clock reading to Options.Now. A clock before 1970 is
+// reported as 1, never 0 (which switches the future-entry check off) and never a
+// wrapped-around huge value, so a broken clock makes the check strict, not void.
+func NowSeconds(t time.Time) uint64 {
+	if s := t.Unix(); s > 0 {
+		return uint64(s)
+	}
+	return 1
 }

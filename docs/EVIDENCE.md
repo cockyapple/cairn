@@ -8,7 +8,7 @@ runs described here are in `docs/evidence/`.
 
 | File | Command | Result |
 |---|---|---|
-| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 327 top-level tests passed, 0 failed, 0 skipped; 212 subtests passed. Every package with tests reports `ok`. |
+| `evidence/tests-race.txt` | `go test -race -count=1 -v ./...` | 347 top-level tests passed, 0 failed, 0 skipped; 212 subtests passed. Every package with tests reports `ok`. |
 | `evidence/mutation.txt` | `go run ./internal/mutate -j 3` (about four minutes) | 157 mutants: 149 killed, 8 equivalent, 0 survived, 0 invalid. |
 
 Both ran in the pinned `golang:1.24-alpine` image (Go 1.24.13). The race run needs cgo, so it

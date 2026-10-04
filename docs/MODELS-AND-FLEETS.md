@@ -1,8 +1,7 @@
 # Any model, many agents
 
 > **Status: design.** This document describes the intended design. What is built today is
-> listed in the README status table; most of what follows (capability grants, delegation,
-> fleet budgets, model scoring, the injection benchmark) is not implemented.
+> listed in the README status table; the capability grant and delegation formats and their enforcement on replay are built (SPEC 10.3.2 to 10.3.4), but most of what follows (the per-agent sandbox, fleet budgets, model scoring, the injection benchmark) is not implemented.
 
 Two requirements: Cairn must work with **any LLM, cloud or local**, and must run
 **many agents at once** without giving up protection. Both follow from one rule
@@ -58,9 +57,10 @@ against injection. Cairn does not guess; it measures.
 
 ### Privacy
 
-A grant can require `local_only`: the gatekeeper then refuses to route that
-agent's content to any cloud adapter. A sanitiser step (like citadel-crew's) can
-be required before any cloud call.
+**Planned, not built:** a grant could require `local_only`, so the gatekeeper refuses to
+route that agent's content to any cloud adapter, and a sanitiser step (like citadel-crew's)
+could be required before any cloud call. Today no grant field or gatekeeper check does
+either; an operator who needs this must choose the adapter themselves (ABUSE-CASES K-08).
 
 ## 2. Many agents at once, still protected
 

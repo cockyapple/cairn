@@ -52,6 +52,13 @@ const (
 	maxBlobsPerAppend = 16
 	maxPendingSizes   = 16
 	defaultSkew       = 300
+
+	// The most cairn-verify will read. A server configured above these would
+	// write a log its own verifier refuses to load.
+	VerifierMaxBlobBytes  = 16 << 20
+	VerifierMaxStoreBytes = 256 << 20
+	VerifierMaxBlobs      = 1 << 16
+	VerifierMaxEntries    = 1 << 20
 )
 
 // Limits bound what one author, and the log as a whole, may consume. The
@@ -118,7 +125,33 @@ type Server struct {
 	pending   map[uint64]map[[32]byte][64]byte
 	latest    *ledger.SignedCheckpoint
 
+	rc rootCache
+
 	crashHook func(point string, height uint64)
+}
+
+// rootCache remembers the Merkle root of a few recent prefixes. The log only grows, so
+// the root of a given size never changes; the cache has its own lock because reads
+// share s.mu.
+type rootCache struct {
+	mu sync.Mutex
+	m  map[uint64]ledger.Hash
+}
+
+const maxCachedRoots = 16
+
+func (c *rootCache) get(size uint64, leaves [][]byte) ledger.Hash {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if h, ok := c.m[size]; ok {
+		return h
+	}
+	h := ledger.MerkleRoot(leaves[:size])
+	if c.m == nil || len(c.m) >= maxCachedRoots {
+		c.m = map[uint64]ledger.Hash{}
+	}
+	c.m[size] = h
+	return h
 }
 
 // Open loads (or creates) the log in cfg.Dir and checks all of it before
@@ -151,12 +184,19 @@ func Open(cfg Config) (*Server, error) {
 	if l.MaxEntries <= 0 {
 		l.MaxEntries = 1 << 20
 	}
+	if l.MaxBlobBytes > VerifierMaxBlobBytes || l.MaxStoreBytes > VerifierMaxStoreBytes || l.MaxBlobs > VerifierMaxBlobs || l.MaxEntries > VerifierMaxEntries {
+		return nil, fmt.Errorf("a limit exceeds what cairn-verify will read (blob %d bytes, store %d bytes, %d blobs, %d entries); a log past them could not be verified", VerifierMaxBlobBytes, VerifierMaxStoreBytes, VerifierMaxBlobs, VerifierMaxEntries)
+	}
 	if err := os.MkdirAll(filepath.Join(cfg.Dir, "blobs"), 0o700); err != nil {
 		return nil, err
 	}
 	s := &Server{cfg: cfg, blobs: governance.MapBlobs{}, rate: map[[32]byte]*window{}, pending: map[uint64]map[[32]byte][64]byte{}}
 	f, err := os.OpenFile(filepath.Join(cfg.Dir, "entries.bin"), os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
+		return nil, err
+	}
+	if err := lockLog(f); err != nil {
+		f.Close()
 		return nil, err
 	}
 	s.efile = f
@@ -394,7 +434,7 @@ func (s *Server) parseAppend(body []byte) (ledger.Entry, [][]byte, *Reject) {
 		if l > len(rest) {
 			return e, nil, reject(http.StatusBadRequest, CodeMalformed, "truncated blob")
 		}
-		blobs = append(blobs, rest[:l])
+		blobs = append(blobs, bytes.Clone(rest[:l])) // do not pin the whole request body
 		rest = rest[l:]
 	}
 	if len(rest) != 0 {
@@ -453,7 +493,7 @@ func (s *Server) Append(body []byte) (ledger.Hash, *Reject) {
 	if n > 0 && e.PrevHash != s.entries[n-1].Hash() {
 		return ledger.Hash{}, reject(http.StatusConflict, ledger.CodeBadPrevHash, "prev_hash is not the current head")
 	}
-	if e.Time > uint64(s.cfg.Now().Unix())+s.cfg.MaxSkew {
+	if now := governance.NowSeconds(s.cfg.Now()); e.Time > now && e.Time-now > s.cfg.MaxSkew {
 		return ledger.Hash{}, reject(http.StatusUnprocessableEntity, governance.CodeFutureEntry, "entry is dated ahead of the server clock")
 	}
 	if n >= s.cfg.Limits.MaxEntries {
@@ -624,7 +664,7 @@ func (s *Server) Status() Status {
 	defer s.mu.RUnlock()
 	st := Status{Entries: len(s.entries)}
 	if len(s.entries) > 0 {
-		root := ledger.MerkleRoot(s.leaves)
+		root := s.rc.get(uint64(len(s.leaves)), s.leaves)
 		head := s.entries[len(s.entries)-1].Hash()
 		st.Root, st.Head = hex.EncodeToString(root[:]), hex.EncodeToString(head[:])
 		st.Epoch, st.Frozen = s.st.Trust().Epoch, s.st.Frozen
@@ -658,7 +698,7 @@ func (s *Server) Blob(h ledger.Hash) ([]byte, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	b, ok := s.blobs[h]
-	return b, ok
+	return bytes.Clone(b), ok
 }
 
 func hashesBytes(hs []ledger.Hash) []byte {
@@ -710,16 +750,29 @@ func (s *Server) CheckpointBody(size uint64) ([]byte, *Reject) {
 	return cp.Body(), nil
 }
 
-func (s *Server) checkpointAt(size uint64) (ledger.Checkpoint, ledger.TrustConfig, *Reject) {
-	var cp ledger.Checkpoint
+func (s *Server) trustAt(size uint64) (uint64, ledger.TrustConfig, *Reject) {
 	if size == 0 {
 		size = uint64(len(s.entries))
 	}
 	if size == 0 || size > uint64(len(s.entries)) {
-		return cp, ledger.TrustConfig{}, reject(http.StatusBadRequest, CodeOutOfRange, "need 1 <= size <= log size")
+		return 0, ledger.TrustConfig{}, reject(http.StatusBadRequest, CodeOutOfRange, "need 1 <= size <= log size")
 	}
 	trust, _ := s.st.TrustForSize(size)
-	return ledger.NewCheckpoint(trust.Epoch, s.entries[:size]), trust, nil
+	return size, trust, nil
+}
+
+// checkpointAt builds the checkpoint body for a prefix. The root costs O(size) the
+// first time, so a caller that is not yet authenticated must not reach it.
+func (s *Server) checkpointAt(size uint64) (ledger.Checkpoint, ledger.TrustConfig, *Reject) {
+	size, trust, rj := s.trustAt(size)
+	if rj != nil {
+		return ledger.Checkpoint{}, trust, rj
+	}
+	return s.checkpointFor(size, trust), trust, nil
+}
+
+func (s *Server) checkpointFor(size uint64, trust ledger.TrustConfig) ledger.Checkpoint {
+	return ledger.Checkpoint{Epoch: trust.Epoch, Size: size, Root: s.rc.get(size, s.leaves), Head: s.entries[size-1].Hash()}
 }
 
 // AddSignature records one validator or witness signature over the checkpoint
@@ -733,7 +786,7 @@ func (s *Server) AddSignature(size uint64, pub [32]byte, sig [64]byte) (complete
 	if rj := s.failed(); rj != nil {
 		return false, rj
 	}
-	cp, trust, rj := s.checkpointAt(size)
+	size, trust, rj := s.trustAt(size)
 	if rj != nil {
 		return false, rj
 	}
@@ -741,6 +794,7 @@ func (s *Server) AddSignature(size uint64, pub [32]byte, sig [64]byte) (complete
 	if !ok || (role != ledger.RoleValidator && role != ledger.RoleWitness) {
 		return false, reject(http.StatusForbidden, ledger.CodeUnknownSigner, "key is not a validator or witness for this size")
 	}
+	cp := s.checkpointFor(size, trust)
 	if !cp.VerifySig(pub, sig) {
 		return false, reject(http.StatusBadRequest, ledger.CodeBadSignature, "signature does not verify")
 	}

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/cockyapple/cairn/eval"
@@ -30,6 +31,9 @@ type Log struct {
 	Clock func() uint64
 
 	st *governance.State
+	// staged holds blobs stored for the append now in progress, so a refused append
+	// can drop them. A Log is not safe for concurrent use; serialize calls.
+	staged []ledger.Hash
 }
 
 // New starts a log with a GENESIS entry signed by one of the validators in trust.
@@ -69,15 +73,19 @@ func (l *Log) append(kind ledger.Kind, key ed25519.PrivateKey, payload []byte) (
 	cand := make([]ledger.Entry, len(l.Entries)+1)
 	copy(cand, l.Entries)
 	cand[len(l.Entries)] = e
-	_, had := l.Blobs[e.PayloadHash]
+	if _, had := l.Blobs[e.PayloadHash]; !had {
+		l.staged = append(l.staged, e.PayloadHash)
+	}
 	l.Blobs[e.PayloadHash] = payload
 	st, err := governance.Replay(cand, l.Blobs, l.Opt)
 	if err != nil {
-		if !had {
-			delete(l.Blobs, e.PayloadHash)
+		for _, h := range l.staged {
+			delete(l.Blobs, h)
 		}
+		l.staged = nil
 		return ledger.Hash{}, err
 	}
+	l.staged = nil
 	l.Entries, l.st = cand, st
 	return e.Hash(), nil
 }
@@ -85,6 +93,9 @@ func (l *Log) append(kind ledger.Kind, key ed25519.PrivateKey, payload []byte) (
 func (l *Log) store(b []byte) ledger.Hash {
 	c := bytes.Clone(b)
 	h := ledger.BlobHash(c)
+	if _, had := l.Blobs[h]; !had {
+		l.staged = append(l.staged, h)
+	}
 	l.Blobs[h] = c
 	return h
 }
@@ -93,6 +104,11 @@ func (l *Log) store(b []byte) ledger.Hash {
 // (the proposal's diff_hash commits to it), rationale explains it, and ev, when
 // given, is the eval result whose hash is recorded as eval_hash.
 func (l *Log) Propose(key ed25519.PrivateKey, tier ledger.Tier, target string, artifact, rationale []byte, ev *eval.Result) (ledger.Hash, error) {
+	if ev != nil {
+		if _, err := eval.Decode(ev.Encode()); err != nil {
+			return ledger.Hash{}, fmt.Errorf("review: the eval result would not decode, so no council could read it: %w", err)
+		}
+	}
 	p := ledger.Proposal{Tier: tier, Target: target, DiffHash: l.store(artifact), RationaleHash: l.store(rationale)}
 	if ev != nil {
 		p.EvalHash = l.store(ev.Encode())

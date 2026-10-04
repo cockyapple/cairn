@@ -4,8 +4,10 @@ Cairn is a security project, so vulnerability reports are welcome and taken seri
 
 ## Status
 
-Pre-release, Phase 0. There is no production deployment. The code has had an automated
-review and is not yet independently audited. Do not rely on it to protect anything real.
+Pre-release. There is no production deployment. The code has been reviewed by AI models
+(OpenAI, Gemini and DeepSeek, see docs/EVIDENCE.md) and has not had a professional or
+independent human security audit. An AI review finds real bugs and also reports false ones;
+it is not a substitute for an audit. Do not rely on it to protect anything real.
 
 ## Reporting
 

@@ -71,7 +71,7 @@ func newBase(name string, cfg Config, path string) (*base, error) {
 		return nil, ErrInsecureURL
 	}
 	if cfg.Client == nil {
-		cfg.Client = &http.Client{Timeout: 120 * time.Second}
+		cfg.Client = &http.Client{Timeout: 120 * time.Second, CheckRedirect: noRedirect}
 	}
 	return &base{name: name, cfg: cfg, url: strings.TrimRight(cfg.BaseURL, "/") + path}, nil
 }
@@ -315,3 +315,8 @@ func (p *ollama) Complete(ctx context.Context, r Request) (string, error) {
 	}
 	return nonEmpty(out.Message.Content)
 }
+
+// noRedirect stops the default client from following a redirect, which would
+// carry the key header to whatever host the reply names. A caller that supplies
+// its own Client owns this decision.
+func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }

@@ -27,9 +27,11 @@ import (
 
 const (
 	maxBlobBytes = 16 << 20 // the wire format's own ceiling for one payload
-	maxBlobs     = 1 << 16
-	maxNoteBytes = 1 << 20 // a checkpoint or note carries at most 1024 signatures
+	maxNoteBytes = 1 << 20  // a checkpoint or note carries at most 1024 signatures
 )
+
+// maxBlobs bounds how many files a blob directory may hold.
+var maxBlobs = 1 << 16
 
 // maxBlobTotal bounds what a bundle may make the verifier hold in memory.
 var maxBlobTotal int64 = 256 << 20
@@ -69,11 +71,16 @@ func run(args []string, out, errw io.Writer) int {
 	var witnesses witnessFlag
 	fs.Var(&witnesses, "witness", "NAME=PUBHEX a witness key and the name it cosigns under (repeatable)")
 	useClock := fs.Bool("use-clock", false, "reject entries dated more than 5 minutes after this machine's clock (makes delays checkable)")
+	minTier := fs.Int("min-tier", 0, "refuse any proposal below this tier (0 to 4) whatever its target; the log cannot enforce a floor itself")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if *entriesPath == "" {
 		fmt.Fprintln(errw, "cairn-verify: -entries is required")
+		return 2
+	}
+	if *minTier < 0 || *minTier > int(ledger.T4) {
+		fmt.Fprintln(errw, "cairn-verify: -min-tier must be 0 to 4")
 		return 2
 	}
 
@@ -102,7 +109,7 @@ func run(args []string, out, errw io.Writer) int {
 			fmt.Fprintln(errw, "cairn-verify: -checkpoint and -note need -blobs to learn the trust configuration")
 			return 2
 		}
-		return scopeNotice(out, false)
+		return scopeNotice(out, false, false)
 	}
 	blobs, err := loadBlobs(*blobsDir)
 	if err != nil {
@@ -111,7 +118,11 @@ func run(args []string, out, errw io.Writer) int {
 	}
 	var opt governance.Options
 	if *useClock {
-		opt.Now, opt.MaxSkew = uint64(time.Now().Unix()), 300
+		opt.Now, opt.MaxSkew = governance.NowSeconds(time.Now()), 300
+	}
+	if *minTier > 0 {
+		floor := ledger.Tier(*minTier)
+		opt.MinTier = func(string) ledger.Tier { return floor }
 	}
 	if *constHex != "" {
 		b, err := hex.DecodeString(*constHex)
@@ -155,7 +166,7 @@ func run(args []string, out, errw io.Writer) int {
 			return code
 		}
 	}
-	return scopeNotice(out, true)
+	return scopeNotice(out, true, *cpPath != "" || *notePath != "")
 }
 
 func verifyNote(out, errw io.Writer, path, origin string, witnesses witnessFlag, st *governance.State, entries []ledger.Entry) int {
@@ -220,27 +231,21 @@ func loadBlobs(dir string) (governance.MapBlobs, error) {
 	}
 	m := governance.MapBlobs{}
 	var total int64
+	seen := 0
 	for _, f := range files {
 		if !f.Type().IsRegular() {
 			continue
 		}
-		if len(m) >= maxBlobs {
+		if seen++; seen > maxBlobs {
 			return nil, fmt.Errorf("more than %d blobs in %s", maxBlobs, dir)
 		}
 		p := filepath.Join(dir, f.Name())
-		fi, err := os.Stat(p)
+		b, err := readCapped(p, maxBlobBytes)
 		if err != nil {
 			return nil, err
 		}
-		if fi.Size() > maxBlobBytes {
-			return nil, fmt.Errorf("%s is larger than %d bytes", f.Name(), maxBlobBytes)
-		}
-		if total += fi.Size(); total > maxBlobTotal {
-			return nil, fmt.Errorf("the blobs in %s add up to more than %d bytes", dir, maxBlobTotal)
-		}
-		b, err := os.ReadFile(p)
-		if err != nil {
-			return nil, err
+		if total += int64(len(b)); total > maxBlobTotal {
+			return nil, fmt.Errorf("the blobs add up to more than %d bytes", maxBlobTotal)
 		}
 		m[ledger.BlobHash(b)] = b
 	}
@@ -249,10 +254,13 @@ func loadBlobs(dir string) (governance.MapBlobs, error) {
 
 // scopeNotice ends every successful run by saying what a pass does not show,
 // so a green result is not read as a verdict on the agent.
-func scopeNotice(out io.Writer, governed bool) int {
-	if governed {
-		fmt.Fprintln(out, "note: this log is authentic and followed its governance rules. That is not proof of what any agent did, that its payloads are true, or that any agent is safe.")
-	} else {
+func scopeNotice(out io.Writer, governed, anchored bool) int {
+	switch {
+	case governed && anchored:
+		fmt.Fprintln(out, "note: this log followed its governance rules and carries signatures that meet its own rules, but without a genesis you pinned yourself that does not show this is the log you meant to check. That is not proof of what any agent did, that its payloads are true, or that any agent is safe.")
+	case governed:
+		fmt.Fprintln(out, "note: this log is internally consistent and followed its governance rules, but no checkpoint or note was verified and no genesis was pinned, so it may be a different log from the one you meant to check. That is not proof of what any agent did, that its payloads are true, or that any agent is safe.")
+	default:
 		fmt.Fprintln(out, "note: only the chain's hashes and signatures were checked. That is not proof of lawful governance, of what any agent did, or that any agent is safe.")
 	}
 	return 0

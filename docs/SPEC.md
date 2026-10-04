@@ -110,11 +110,11 @@ then n x (`[32] public_key, [64] signature`).
 A checkpoint is valid for a chain and a TrustConfig iff: size equals the entry
 count and is non-zero; root equals the Merkle root; head equals the last entry
 hash; epoch equals the TrustConfig epoch; signatures are in strictly ascending order of public key (a repeat is `duplicate_signer`,
-a misordering is `unsorted_signers`); every signer is **admitted** (a stranger is
+a misordering is `unsorted_signers`); every signer is **admitted** as a validator or a witness (a stranger, or a key that holds any other role, is
 `unknown_signer`); every signature verifies; validator signatures reach
 `n - (n-1)/3`; witness signatures reach `witness_threshold`.
 
-Consequence: surplus, unsorted, repeated or stranger signatures cannot be added to a
+Consequence: surplus, unsorted, repeated, stranger or wrong-role signatures cannot be added to a
 checkpoint without it being rejected, so a checkpoint cannot be padded or reordered
 into a second valid byte string (ADR-12). That is all it guarantees. It is **not**
 one checkpoint per tree head, and it does not make the full encoding a unique
@@ -216,7 +216,8 @@ check.
   propose again.
 - ACTIVATE lists the approving VOTE entries. Each must approve this proposal,
   come from a distinct author who **still** holds a reviewer or security
-  reviewer role (`bad_vote_reference`), and the counts must meet the tier
+  reviewer role. Listing the same vote twice, or two votes by one author, is
+  `bad_vote_reference` too (the replay's message says "repeated"). The counts must meet the tier
   (`insufficient_approvals`):
 
   | Tier | Approvals | of which security | Minimum delay |
@@ -324,8 +325,9 @@ grants (10.3.4; see 10.5).
 
 An ACTION **intent** by a bound agent is checked against the agent's grant, unless
 its type is `cairn/delegate` (10.3.2) or `cairn/event` (10.4). Completions are
-never checked. The `args_hash` of a checked intent must be the hash of a **use**
-blob:
+never checked. The `args_hash` of a checked intent must be the plain SHA-256 of the
+canonical bytes of a **use** blob (the same blob hash as everywhere else, no domain
+prefix):
 
 ```
 u8 version (1) | string host | u64 cost | bytes args
@@ -396,6 +398,14 @@ An ACTION whose `result_hash` is zero is an **intent**. One with a non-zero
 the entry hash of the same author's previous ACTION, or zero for its first
 (`bad_action_chain`). The replay reports every intent still open; an old open
 intent is a signal (crash, refusal or concealment), not itself a violation.
+
+**Stranded intents.** The oldest open intent must be closed before the author can
+finish any later one, and a gatekeeper keeps its open intent only in memory. If it
+crashes after the intent is on the log and cannot write the completion (the open
+intent is lost with the process), the replay will refuse every later ACTION of that author until a
+completion matching the stranded intent is written. There is no recovery entry. The ways out are an operator-written completion signed by that agent key
+with the same `action_type` and `args_hash`, or retiring the key (REVOKE, 10.3.1) and
+starting a new agent. See ABUSE-CASES O-02.
 
 An ACTION of type `cairn/event` records something the agent's gatekeeper did
 about the agent, such as a refusal or a rate limit, for a bound agent that

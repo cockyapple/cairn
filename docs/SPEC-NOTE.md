@@ -45,7 +45,9 @@ A note is capped at 256 KiB and 1,024 signature lines.
 
 The 4-byte key id is `SHA-256(name || 0x0A || type || public_key)[:4]`, so it commits to
 the role's signature type. A witness cosignature body is a big-endian `u64` timestamp
-followed by the 64-byte signature. Other roles (reviewer, proposer, agent) do not sign
+followed by the 64-byte signature. On the wire a cosignature line carries
+`base64(key_id || u64 timestamp || 64-byte signature)`, 76 bytes before encoding; a plain
+note signature line carries `base64(key_id || 64-byte signature)`. Other roles (reviewer, proposer, agent) do not sign
 checkpoints; a signature from one is treated as an unknown signer.
 
 C2SP's cosignature does not commit to the cosigner's name, so a witness operator running

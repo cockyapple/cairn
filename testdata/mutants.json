@@ -137,7 +137,7 @@
  {
   "name": "witness: clock",
   "file": "witness/witness.go",
-  "old": "opt.Now, opt.MaxSkew = uint64(w.cfg.Clock().Unix()), w.cfg.MaxSkew",
+  "old": "opt.Now, opt.MaxSkew = governance.NowSeconds(w.cfg.Clock()), w.cfg.MaxSkew",
   "new": ""
  },
  {
@@ -233,7 +233,7 @@
  {
   "name": "review: bundle blob size cap",
   "file": "review/bundle.go",
-  "old": "fi.Size() > maxBlobBytes",
+  "old": "len(b) > maxBlobBytes",
   "new": "false"
  },
  {
@@ -396,8 +396,8 @@
  {
   "name": "grant: revoke does not cascade",
   "file": "governance/grant.go",
-  "old": "*g.parent == k",
-  "new": "false"
+  "old": "children[*g.parent] = append(children[*g.parent], c)",
+  "new": "_ = c"
  },
  {
   "name": "governance: revoke does not withdraw",
@@ -624,8 +624,8 @@
  {
   "name": "grant: revoking a parent cancels a child root grant",
   "file": "governance/grant.go",
-  "old": "r.withdrawDerived(c)",
-  "new": "r.withdraw(c)"
+  "old": "delete(r.grants, x)",
+  "new": "delete(r.grants, x); delete(r.sched, x)"
  },
  {
   "name": "policy: require-grants is not enforced",

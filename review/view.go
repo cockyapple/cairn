@@ -167,19 +167,21 @@ func card(st *governance.State, blobs governance.Blobs, p governance.ProposalInf
 	} else {
 		c.DiffNote = "No earlier artifact for this target; the full proposed content:"
 	}
+	const maxRows = 2000
 	d, err := Diff(m.Previous, m.Artifact)
+	lines := len(d)
 	if err != nil {
 		c.DiffNote = "Too large to diff against the earlier version, so no changes are marked. The full proposed content follows:"
+		lines = lineCount(m.Artifact)
 		d = d[:0]
-		for _, ln := range splitLines(m.Artifact) {
+		for _, ln := range firstLines(m.Artifact, maxRows+1) {
 			d = append(d, DiffLine{Op: Same, Text: ln})
 		}
 	}
-	const maxRows = 2000
 	for i, l := range d {
 		if i == maxRows {
-			c.Diff = append(c.Diff, diffRow{"", "same", fmt.Sprintf("... %d more lines not shown", len(d)-maxRows)})
-			c.Truncated = fmt.Sprintf("This view is incomplete: %d lines are not shown. Do not approve what you have not read; use the bundle for the rest.", len(d)-maxRows)
+			c.Diff = append(c.Diff, diffRow{"", "same", fmt.Sprintf("... %d more lines not shown", lines-maxRows)})
+			c.Truncated = fmt.Sprintf("This view is incomplete: %d lines are not shown. Do not approve what you have not read; use the bundle for the rest.", lines-maxRows)
 			break
 		}
 		row := diffRow{Mark: " ", Class: "same", Text: l.Text}

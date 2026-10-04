@@ -318,8 +318,10 @@ func (b *builder) checkpointCases(chain []ledger.Entry, trust ledger.TrustConfig
 
 	add("below_validator_quorum", ledger.CodeBelowQuorum, chain, b.signed(full, "v1", "v2", "w1", "w2"))
 	add("below_witness_threshold", ledger.CodeBelowWitnesses, chain, b.signed(full, "v1", "v2", "v3", "w1"))
-	add("reviewer_signature_does_not_count_as_validator", ledger.CodeBelowQuorum, chain,
+	add("reviewer_signature_in_place_of_a_validator", ledger.CodeUnknownSigner, chain,
 		b.signed(full, "v1", "v2", "r1", "w1", "w2"))
+	add("reviewer_signature_added_to_a_full_quorum", ledger.CodeUnknownSigner, chain,
+		b.signed(full, "v1", "v2", "v3", "r1", "w1", "w2"))
 
 	bad := b.signed(full, quorum...)
 	bad.Sigs[1].Signature[0] ^= 1

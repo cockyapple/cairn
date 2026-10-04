@@ -140,6 +140,9 @@ func Strict(fields ...Field) func([]byte) error {
 				return fmt.Errorf("field %q is missing", f.Name)
 			}
 			var s string
+			if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+				return fmt.Errorf("field %q is not a string", f.Name)
+			}
 			if err := json.Unmarshal(raw, &s); err != nil {
 				return fmt.Errorf("field %q is not a string", f.Name)
 			}
