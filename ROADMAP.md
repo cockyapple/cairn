@@ -60,10 +60,11 @@ forced split view.
 docs produced [docs/ABUSE-CASES.md](docs/ABUSE-CASES.md): 38 cases, each marked acknowledged or
 a new gap, with what to watch for and a mitigation that leaves the core alone. `cairn-verify`
 now ends every successful run with a one-line `note:` saying a pass is not proof of what an
-agent did or that it is safe. **Still owed from that review, none built:** a genesis pin and a
-maximum checkpoint age in `cairn-verify`, a warning for threshold 0 or a single validator, a
-warning for published test keys, and a `MinTier` flag. All sit in `cmd/`, outside the line
-budget. The review read the docs, not the running system.
+agent did or that it is safe. `cairn-verify` has since gained `-genesis HEX` (pin the first entry, `wrong_genesis`), `-max-age DURATION`
+(refuse an old head by this machine's clock; entry times are the signer's claim), `-min-tier`, and
+`warn:` lines for threshold 0, a single validator and published test keys. All sit in `cmd/`, outside
+the line budget. **Still owed from that review:** governance-replay vectors, signed releases, an
+incremental witness replay. The review read the docs, not the running system.
 *Added after the survey (planned, not built):*
 - **Checkpoint format (BUILT, ADR-20).** The native binary checkpoint stays the signed object.
   A C2SP signed-note rendering of the same tree head (package `note`, `docs/SPEC-NOTE.md`,

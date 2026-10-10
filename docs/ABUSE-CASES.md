@@ -62,13 +62,12 @@ self-run deployment. Both are judgements, not measurements.
 - **Status:** **New gap** (the identity point). Entries chain by hash, so a signed entry only fits
   the history it was signed for; I infer the risk is attribution and reputation confusion, not
   signature replay. `cairn-witness` can pin the first entry (`-genesis`, "recommended", not
-  required, `wrong_genesis`). `cairn-verify` has **no genesis pin**; its only identity pin is
-  `-constitution`, which two different logs can share.
+  required, `wrong_genesis`). `cairn-verify -genesis HEX` now pins it too (`wrong_genesis`, exit 1); without it the only identity pin is
+  `-constitution`, which two different logs can share, and the closing note says no genesis was pinned.
 - **Watch for:** the same public key in the TrustConfig of unrelated GENESIS entries; reports that
   do not show the genesis entry hash.
 - **Mitigation:** *Operator practice, built:* pin `-genesis` on every witness; one key per log.
-  *Candidate, not built:* a `-genesis` flag on `cairn-verify` (outside the line budget, it
-  lives in `cmd/`).
+  *Built:* the `-genesis` flag on `cairn-verify` (outside the line budget, in `cmd/`). It is optional, so a run that omits it is still unpinned.
 
 ### C-03 Guessing the content behind a plain hash
 - **Actor:** anyone who reads the public log.
@@ -167,8 +166,8 @@ self-run deployment. Both are judgements, not measurements.
   independent witness.
 - **Watch for:** validator count, threshold and operator affiliations on any claim of
   "independent" or "community" governance.
-- **Mitigation:** *Operator practice:* publish who runs each key. *Candidate, not built:* a
-  warning (not a failure) from the CLI for threshold 0 or a single validator.
+- **Mitigation:** *Operator practice:* publish who runs each key. *Built:* `cairn-verify` prints a
+  `warn:` line (never a failure) for threshold 0 or a single validator. It cannot tell one operator holding several keys from several operators.
 
 ## 3. The log as a data store
 
@@ -411,7 +410,7 @@ self-run deployment. Both are judgements, not measurements.
   REVOKE or FREEZE.
 - **Severity / likelihood:** high / medium.
 - **Status:** Acknowledged. THREAT-MODEL: a client that never sees a newer checkpoint cannot tell it
-  is behind. **No maximum checkpoint age exists in the code.**
+  is behind. **`cairn-verify -max-age DURATION` now exists** (see below); the library still has none.
 - **Watch for:** checkpoint age; a smaller latest size on one mirror than another.
 - **Mitigation:** *Operator practice:* ask more than one source for the latest size. *Candidate, not
   built:* a maximum age flag in the CLI, which needs a trusted clock.
@@ -514,7 +513,7 @@ self-run deployment. Both are judgements, not measurements.
   host.
 - **Mitigation:** *Operator practice:* hardware keys, role separation, encrypted backups, a drill for
   losing a quorum, and a written decision on starting a new log (which loses continuity).
-  *Candidate, not built:* a CLI warning if a trust key matches a published test key.
+  *Built:* `cairn-verify` warns if any trust key is one of the 16 published test keys (derived from `sha256("cairn-test-key-"+name)`, checked against `testdata/vectors-v1.json` by a test). Keys derived from other public strings are not recognised.
 
 ### O-02 A stranded intent that nothing can close
 - **Actor:** bad luck; a crash at the wrong moment; an attacker who can kill the gatekeeper.
@@ -537,12 +536,12 @@ The reviewer's ranking, rechecked. **Built** marks what already exists.
 1. **Say a pass is not a verdict on the agent.** Built: the `cairn-verify` notice (F-01).
 2. **Give every non-reserved target a tier floor, and alert on T0.** Operator practice; no CLI flag yet (G-02).
 3. **Keep agent keys and tool credentials inside the gatekeeper** (K-01).
-4. **Use a trusted clock in production** and record first-seen times (G-03, W-02). `-use-clock` is built; a maximum checkpoint age is not.
-5. **Publish who runs each key**, and flag threshold 0 or one operator (G-07, S-01).
+4. **Use a trusted clock in production** and record first-seen times (G-03, W-02). `-use-clock` and `-max-age` are built.
+5. **Publish who runs each key.** The CLI now warns on threshold 0, a single validator, or a published test key (G-07, S-01, O-01).
 6. **Set an opening-retention policy; never the in-memory store in production** (H-01, H-02).
 7. **Put the log server behind a proxy, and decide a takedown policy before going public** (L-02, L-03).
 8. **Compare checkpoints across witnesses and mirrors** (W-01, W-02). Gossip is not built.
-9. **Governance-replay vectors, signed releases, and a genesis pin in `cairn-verify`** (C-01, C-02, E-01). None built.
+9. **Governance-replay vectors, signed releases, and a genesis pin in `cairn-verify`** (C-01, C-02, E-01). The genesis pin is built; vectors and signed releases are not.
 10. **Turn on require-grants before agents act** (K-03). Built.
 
 ## 10. Not preventable: non-goals
